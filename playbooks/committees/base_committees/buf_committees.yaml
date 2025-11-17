@@ -71,10 +71,12 @@ buf_board_members:
         organization:
           name: {{ fake.company() }}
           website: {{ fake.url() }}
-        {% if i == 0 %}
         role:
+          {% if i == 0 %}
           name: Chair
-        {% endif %}
+          {% else %}
+          name: None
+          {% endif %}
         status: Active
         voting:
           {% set start_date = fake.date_this_year() %}
