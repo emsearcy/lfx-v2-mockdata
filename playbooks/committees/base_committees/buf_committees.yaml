@@ -60,7 +60,7 @@ buf_board_members:
     url: !sub "{{ environ.COMMITTEES_URL | default('http://lfx-v2-committee-service.lfx.svc.cluster.local:8080/committees') }}/${ buf_committees.steps[?json.name == 'Governing Board']._response.uid | [0] }/members?v=1"
     method: POST
     headers:
-      Authorization: Bearer {{ environ.COMMITTEES_TOKEN | default("-") }}
+      Authorization: !jwt bearer=true,aud=lfx-v2-committee-service,principal=clients@m2m_helper
   steps:
     {% for i in range(8) %}
     - json:
