@@ -30,100 +30,105 @@ buf_board_meeting_create:
   type: nats-publish
   params:
     # Create the meeting in OpenSearch (via indexer).
-    subject: lfx.index.v1_meeting.create
+    subject: lfx.index.v1_meeting
   steps:
     - json:
-        {% set meeting_id = fake.pyint(min_value=10000000000, max_value=99999999999) %}
-        {# Calculate initial meeting time based on `total_past_meetings`. #}
-        {% set previous_meeting = fake.date_time_between(
-          start_date='-28d',
-          end_date='-14d',
-        ) %}
-        {% set meeting_start_time = (
-          previous_meeting - timedelta(days=30 * (total_past_meetings - 1))
-        ).replace(minute=0, second=0, microsecond=0) %}
-        {% set meeting_duration = 60 %}
-        {# Our logic only supports recurrence patterns of weeks 1 through 4,
-           not "last week of the month", aka week "-1", so ensure we don't
-           start on a month-day later than 28. #}
-        {% if meeting_start_time.day > 28 %}
-        {% set meeting_start_time = meeting_start_time.replace(day=28) %}
-        {% endif %}
-        {# Ensure it's on a weekday. #}
-        {% if meeting_start_time.weekday() in (5, 6) %}
-        {% set meeting_start_time = meeting_start_time - timedelta(days=2) %}
-        {% endif %}
-        {# Map Python weekday (0 = Monday, 6 = Sunday) to Zoom (1 = Sunday, 7 = Saturday). #}
-        {% set zoom_week_day = (meeting_start_time.weekday() + 1) % 7 + 1 %}
-        {% set week_of_month = (meeting_start_time.day / 7) | round(0, 'ceil') | int %}
-        topic: Monthly Board Meeting
-        visibility: public
-        agenda: "Monthly meeting for the Big Umbrella Foundation board. {{ fake.sentence() }}"
-        # This is rewritten as an array to incorporate the "mappings" one-to-many table.
-        committees:
-          - uid: !ref "buf_committees.steps[?json.name == 'Governing Board']._response.uid | [0]"
-            filters: []
-        restricted: false
-        password: {{ fake.uuid4() }}
-        recurrence:
-          # 100 years from initial meeting.
-          end_date_time: "{{ (meeting_start_time + timedelta(days=365*100)).isoformat() }}Z"
-          repeat_interval: "1"
-          type: "3"
-          monthly_week: "{{ week_of_month }}"
-          monthly_week_day: "{{ zoom_week_day }}"
-        zoom_ai_enabled: true
-        # 6-digit numeric passcode.
-        host_key: "{{ fake.pyint(min_value=100000, max_value=999999) }}"
-        transcript_enabled: true
-        early_join_time: "10"
-        recording_enabled: true
-        duration: "{{ meeting_duration }}"
-        meeting_id: "{{ meeting_id }}"
-        recording_access: public
-        concurrent_zoom_user_enabled: true
-        # TODO.
-        #updated_occurrences:
-        #   - duration: "60"
-        #     recurrence:
-        #       repeat_interval: "2"
-        #       end_date_time: "2124-10-07T13:00:00Z"
-        #       type: "2"
-        #       weekly_days: "3"
-        #     old_occurrence_id: "1762275600"
-        #     timezone: ""
-        #     topic: Monthly Board Meeting
-        #     all_following: true
-        #     new_occurrence_id: "1762275600"
-        #     agenda: ""
-        require_ai_summary_approval: true
-        use_new_invite_email_address: true
-        # TODO
-        #ics_additional_uids:
-        #  - 98457927869:2025-11-04T17:00:00Z
-        created_at: &board_meeting_created_at
-          "{{ fake.date_time_between(start_date='-1y', end_date='-90d').isoformat() }}Z"
-        meeting_type: Board
-        join_url: "https://zoom.example/j/{{ meeting_id }}?pwd={{ fake.pystr() }}"
-        transcript_access: public
-        start_time: "{{ meeting_start_time.isoformat() }}Z"
-        # Note, proj_id (sfid) in the source data will have been stripped by lfx-v1-sync-helper.
-        project_uid: !ref "buf_board_meeting_project_lookup.steps[0]._response"
-        # Note, this is later than `created_at`.
-        modified_at: "{{ fake.date_time_between(start_date='-90d', end_date='-30d').isoformat() }}Z"
-        last_end_time: "{{ (meeting_start_time + timedelta(days=365*100, minutes=meeting_duration+60)).timestamp() | int }}"
-        user_id: "{{ zoom_host_user }}"
-        last_mailing_list_members_sync_job_status: none
-        # Use "America/Los_Angeles" 50% of the time, else random.
-        {% if fake.pybool() %}
-        timezone: "America/Los_Angeles"
-        {% else %}
-        timezone: "{{ fake.timezone() }}"
-        {% endif %}
-        last_bulk_registrant_job_status: none
-        ai_summary_access: public
-        # 6-digit numeric passcode.
-        passcode: "{{ fake.pyint(min_value=100000, max_value=999999) }}"
+        action: created
+        headers:
+          authorization: !jwt bearer=true,aud=lfx-v2-project-service,principal={{ fake.user_name() }},email={{ fake.email() }}
+          x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=clients@m2m_helper
+        data:
+          {% set meeting_id = fake.pyint(min_value=10000000000, max_value=99999999999) %}
+          {# Calculate initial meeting time based on `total_past_meetings`. #}
+          {% set previous_meeting = fake.date_time_between(
+            start_date='-28d',
+            end_date='-14d',
+          ) %}
+          {% set meeting_start_time = (
+            previous_meeting - timedelta(days=30 * (total_past_meetings - 1))
+          ).replace(minute=0, second=0, microsecond=0) %}
+          {% set meeting_duration = 60 %}
+          {# Our logic only supports recurrence patterns of weeks 1 through 4,
+             not "last week of the month", aka week "-1", so ensure we don't
+             start on a month-day later than 28. #}
+          {% if meeting_start_time.day > 28 %}
+          {% set meeting_start_time = meeting_start_time.replace(day=28) %}
+          {% endif %}
+          {# Ensure it's on a weekday. #}
+          {% if meeting_start_time.weekday() in (5, 6) %}
+          {% set meeting_start_time = meeting_start_time - timedelta(days=2) %}
+          {% endif %}
+          {# Map Python weekday (0 = Monday, 6 = Sunday) to Zoom (1 = Sunday, 7 = Saturday). #}
+          {% set zoom_week_day = (meeting_start_time.weekday() + 1) % 7 + 1 %}
+          {% set week_of_month = (meeting_start_time.day / 7) | round(0, 'ceil') | int %}
+          topic: Monthly Board Meeting
+          visibility: public
+          agenda: "Monthly meeting for the Big Umbrella Foundation board. {{ fake.sentence() }}"
+          # This is rewritten as an array to incorporate the "mappings" one-to-many table.
+          committees:
+            - uid: !ref "buf_committees.steps[?json.name == 'Governing Board']._response.uid | [0]"
+              filters: []
+          restricted: false
+          password: {{ fake.uuid4() }}
+          recurrence:
+            # 100 years from initial meeting.
+            end_date_time: "{{ (meeting_start_time + timedelta(days=365*100)).isoformat() }}Z"
+            repeat_interval: "1"
+            type: "3"
+            monthly_week: "{{ week_of_month }}"
+            monthly_week_day: "{{ zoom_week_day }}"
+          zoom_ai_enabled: true
+          # 6-digit numeric passcode.
+          host_key: "{{ fake.pyint(min_value=100000, max_value=999999) }}"
+          transcript_enabled: true
+          early_join_time: "10"
+          recording_enabled: true
+          duration: "{{ meeting_duration }}"
+          meeting_id: "{{ meeting_id }}"
+          recording_access: public
+          concurrent_zoom_user_enabled: true
+          # TODO.
+          #updated_occurrences:
+          #   - duration: "60"
+          #     recurrence:
+          #       repeat_interval: "2"
+          #       end_date_time: "2124-10-07T13:00:00Z"
+          #       type: "2"
+          #       weekly_days: "3"
+          #     old_occurrence_id: "1762275600"
+          #     timezone: ""
+          #     topic: Monthly Board Meeting
+          #     all_following: true
+          #     new_occurrence_id: "1762275600"
+          #     agenda: ""
+          require_ai_summary_approval: true
+          use_new_invite_email_address: true
+          # TODO
+          #ics_additional_uids:
+          #  - 98457927869:2025-11-04T17:00:00Z
+          created_at: &board_meeting_created_at
+            "{{ fake.date_time_between(start_date='-1y', end_date='-90d').isoformat() }}Z"
+          meeting_type: Board
+          join_url: "https://zoom.example/j/{{ meeting_id }}?pwd={{ fake.pystr() }}"
+          transcript_access: public
+          start_time: "{{ meeting_start_time.isoformat() }}Z"
+          # Note, proj_id (sfid) in the source data will have been stripped by lfx-v1-sync-helper.
+          project_uid: !ref "buf_board_meeting_project_lookup.steps[0]._response"
+          # Note, this is later than `created_at`.
+          modified_at: "{{ fake.date_time_between(start_date='-90d', end_date='-30d').isoformat() }}Z"
+          last_end_time: "{{ (meeting_start_time + timedelta(days=365*100, minutes=meeting_duration+60)).timestamp() | int }}"
+          user_id: "{{ zoom_host_user }}"
+          last_mailing_list_members_sync_job_status: none
+          # Use "America/Los_Angeles" 50% of the time, else random.
+          {% if fake.pybool() %}
+          timezone: "America/Los_Angeles"
+          {% else %}
+          timezone: "{{ fake.timezone() }}"
+          {% endif %}
+          last_bulk_registrant_job_status: none
+          ai_summary_access: public
+          # 6-digit numeric passcode.
+          passcode: "{{ fake.pyint(min_value=100000, max_value=999999) }}"
 
 buf_board_meeting_access_update:
   type: nats-publish
@@ -146,51 +151,56 @@ buf_board_meeting_committee_participants_create:
   type: nats-publish
   params:
     # Create the registered participant in OpenSearch (via indexer).
-    subject: lfx.index.v1_meeting_registrant.create
+    subject: lfx.index.v1_meeting_registrant
   steps:
     # Count matches the count in buf_board_members.
     {% for i in range(board_member_count) %}
     - json:
-        registrant_id: "{{ fake.uuid4() }}"
-        meeting_id: "{{ meeting_id }}"
-        committee: !ref "buf_committees.steps[?json.name == 'Governing Board']._response.uid | [0]"
-        org: !ref "buf_board_members.steps[{{ i }}].json.organization.name"
-        org_is_project_member: {{ fake.pybool() }}
-        email: !ref "buf_board_members.steps[{{ i }}].json.email"
-        last_invite_delivery_successful: true
-        last_invite_received_time: "{{ fake.date_time_between(start_date='-30d', end_date='now').isoformat() }}Z"
-        # TODO.
-        profile_picture: "https://lfx-cdn-prod.s3.amazonaws.com/users/avatar/a.png"
-        host: {{ fake.pybool() }}
-        last_invite_bounced: false
-        {% if fake.pybool() %}
-        job_title: "-"
-        {% else %}
-        job_title: "{{ fake.job() }}"
-        {% endif %}
-        {% if fake.pybool() %}
-        created_at: *board_meeting_created_at
-        {% else %}
-        created_at: "{{ fake.date_time_between(start_date='-90d', end_date='-60d').isoformat() }}Z"
-        {% endif %}
-        org_is_member: {{ fake.pybool() }}
-        last_invite_received_message_id: "{{ fake.uuid4().replace('-', '')[0:40] }}"
-        modified_at: "{{ fake.date_time_between(start_date='-60d', end_date='-30d').isoformat() }}Z"
-        # 50% chance to be empty, else use the local part of their email as a
-        # mock LFID username. `user_id` (sfid) is stripped by lfx-v1-sync-helper.
-        {% if member_has_username[i] %}
-        # TODO to parse from email local part.
-        username: {{ fake.user_name() }}
-        {% else %}
-        username: ""
-        {% endif %}
-        last_name: !ref "buf_board_members.steps[{{ i }}].json.last_name"
-        # faker emails SHOULD be all lowercase at present.
-        case_sensitive_email: !ref buf_board_members.steps[{{ i }}].json.email
-        first_name: !ref buf_board_members.steps[{{ i }}].json.first_name
-        last_invite_delivered_time: "{{ fake.date_time_between(start_date='-60d', end_date='now').isoformat() }}Z"
-        type: committee
-    {% endfor %}
+        action: created
+        headers:
+          authorization: !jwt bearer=true,aud=lfx-v2-project-service,principal={{ fake.user_name() }},email={{ fake.email() }}
+          x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=clients@m2m_helper
+        data:
+          registrant_id: "{{ fake.uuid4() }}"
+          meeting_id: "{{ meeting_id }}"
+          committee: !ref "buf_committees.steps[?json.name == 'Governing Board']._response.uid | [0]"
+          org: !ref "buf_board_members.steps[{{ i }}].json.organization.name"
+          org_is_project_member: {{ fake.pybool() }}
+          email: !ref "buf_board_members.steps[{{ i }}].json.email"
+          last_invite_delivery_successful: true
+          last_invite_received_time: "{{ fake.date_time_between(start_date='-30d', end_date='now').isoformat() }}Z"
+          # TODO.
+          profile_picture: "https://lfx-cdn-prod.s3.amazonaws.com/users/avatar/a.png"
+          host: {{ fake.pybool() }}
+          last_invite_bounced: false
+          {% if fake.pybool() %}
+          job_title: "-"
+          {% else %}
+          job_title: "{{ fake.job() }}"
+          {% endif %}
+          {% if fake.pybool() %}
+          created_at: *board_meeting_created_at
+          {% else %}
+          created_at: "{{ fake.date_time_between(start_date='-90d', end_date='-60d').isoformat() }}Z"
+          {% endif %}
+          org_is_member: {{ fake.pybool() }}
+          last_invite_received_message_id: "{{ fake.uuid4().replace('-', '')[0:40] }}"
+          modified_at: "{{ fake.date_time_between(start_date='-60d', end_date='-30d').isoformat() }}Z"
+          # 50% chance to be empty, else use the local part of their email as a
+          # mock LFID username. `user_id` (sfid) is stripped by lfx-v1-sync-helper.
+          {% if member_has_username[i] %}
+          # TODO to parse from email local part.
+          username: {{ fake.user_name() }}
+          {% else %}
+          username: ""
+          {% endif %}
+          last_name: !ref "buf_board_members.steps[{{ i }}].json.last_name"
+          # faker emails SHOULD be all lowercase at present.
+          case_sensitive_email: !ref buf_board_members.steps[{{ i }}].json.email
+          first_name: !ref buf_board_members.steps[{{ i }}].json.first_name
+          last_invite_delivered_time: "{{ fake.date_time_between(start_date='-60d', end_date='now').isoformat() }}Z"
+          type: committee
+      {% endfor %}
 
 buf_board_meeting_committee_participants_access_update:
   type: nats-publish
@@ -236,52 +246,57 @@ buf_board_past_meeting_{{ past_meeting_index }}_create:
   type: nats-publish
   params:
     # Create the past meeting in OpenSearch (via indexer).
-    subject: lfx.index.v1_past_meeting.create
+    subject: lfx.index.v1_past_meeting
   steps:
     - json:
-        topic: Monthly Board Meeting
-        artifacts: null
-        visibility: public
-        agenda: "Monthly meeting for the Big Umbrella Foundation board. {{ fake.sentence() }}"
-        committees:
-          - uid: !ref "buf_committees.steps[?json.name == 'Governing Board']._response.uid | [0]"
-            filters:
-              - voting_rep
-              - alt_voting_rep
-              - observer
-              - emeritus
-        restricted: true
-        is_manually_created: false
-        project_slug: buf
-        scheduled_end_time: "{{ (ns.occurrence_start_time + timedelta(minutes=meeting_duration)).isoformat() }}Z"
-        recurrence: !ref buf_board_meeting_create.steps[0].json.recurrence
-        zoom_ai_enabled: true
-        transcript_enabled: true
-        early_join_time: "10"
-        sessions:
-          - end_time: "{{ occurrence_actual_end.isoformat() }}Z"
-            uuid: "{{ session_uuid }}"
-            start_time: "{{ occurrence_actual_start.isoformat() }}Z"
-        recording_enabled: true
-        meeting_and_occurrence_id: {{ meeting_id }}-{{ occurrence_id }}"
-        duration: "{{ meeting_duration }}"
-        meeting_id: "{{ meeting_id }}"
-        recording_access: public
-        scheduled_start_time: "{{ ns.occurrence_start_time.isoformat() }}Z"
-        require_ai_summary_approval: true
-        created_at: "{{ occurrence_created.isoformat() }}Z"
-        meeting_type: ""
-        occurrence_id: "{{ occurrence_id }}"
-        transcript_access: public
-        recording_password: ""
-        # Note, proj_id (sfid) in the source data will have been stripped by
-        # lfx-v1-sync-helper. We'll still keep project_slug, though.
-        project_uid: !ref "buf_board_meeting_project_lookup.steps[0]._response"
-        modified_at: {{ occurrence_modified.isoformat() }}Z"
-        timezone: !ref buf_board_meeting_create.steps[0].json.timezone
-        ai_summary_access: public
-        # TODO ... what is this? (it didn't necesesarily match recurrence.type in my test data)
-        type: "3"
+        action: created
+        headers:
+          authorization: !jwt bearer=true,aud=lfx-v2-project-service,principal={{ fake.user_name() }},email={{ fake.email() }}
+          x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=clients@m2m_helper
+        data:
+          topic: Monthly Board Meeting
+          artifacts: null
+          visibility: public
+          agenda: "Monthly meeting for the Big Umbrella Foundation board. {{ fake.sentence() }}"
+          committees:
+            - uid: !ref "buf_committees.steps[?json.name == 'Governing Board']._response.uid | [0]"
+              filters:
+                - voting_rep
+                - alt_voting_rep
+                - observer
+                - emeritus
+          restricted: true
+          is_manually_created: false
+          project_slug: buf
+          scheduled_end_time: "{{ (ns.occurrence_start_time + timedelta(minutes=meeting_duration)).isoformat() }}Z"
+          recurrence: !ref buf_board_meeting_create.steps[0].json.recurrence
+          zoom_ai_enabled: true
+          transcript_enabled: true
+          early_join_time: "10"
+          sessions:
+            - end_time: "{{ occurrence_actual_end.isoformat() }}Z"
+              uuid: "{{ session_uuid }}"
+              start_time: "{{ occurrence_actual_start.isoformat() }}Z"
+          recording_enabled: true
+          meeting_and_occurrence_id: {{ meeting_id }}-{{ occurrence_id }}"
+          duration: "{{ meeting_duration }}"
+          meeting_id: "{{ meeting_id }}"
+          recording_access: public
+          scheduled_start_time: "{{ ns.occurrence_start_time.isoformat() }}Z"
+          require_ai_summary_approval: true
+          created_at: "{{ occurrence_created.isoformat() }}Z"
+          meeting_type: ""
+          occurrence_id: "{{ occurrence_id }}"
+          transcript_access: public
+          recording_password: ""
+          # Note, proj_id (sfid) in the source data will have been stripped by
+          # lfx-v1-sync-helper. We'll still keep project_slug, though.
+          project_uid: !ref "buf_board_meeting_project_lookup.steps[0]._response"
+          modified_at: {{ occurrence_modified.isoformat() }}Z"
+          timezone: !ref buf_board_meeting_create.steps[0].json.timezone
+          ai_summary_access: public
+          # TODO ... what is this? (it didn't necesesarily match recurrence.type in my test data)
+          type: "3"
 
 buf_board_past_meeting_{{ past_meeting_index }}_access_update:
   type: nats-publish
@@ -328,74 +343,79 @@ buf_board_past_meeting_{{ past_meeting_index }}_recording_create:
   type: nats-publish
   params:
     # Create the past meeting recording in OpenSearch (via indexer).
-    subject: lfx.index.v1_past_meeting_recording.create
+    subject: lfx.index.v1_past_meeting_recording
   steps:
     - json:
-        # This is a filtered version of the v1 recordings object.
-        created_at: "{{ recording_create_time.isoformat() }}Z"
-        total_size: "{{ total_recording_size }}"
-        topic: Monthly Board Meeting
-        occurrence_id: "{{ occurrence_id }}"
-        # `visibility` is for the meeting and should not be used for this object.
-        # visibility: public
-        recording_files:
-          {% set recording_hash = fake.pystr(min_chars=90, max_chars=120) %}
-          - play_url: https://zoom.example/rec/play/{{ recording_hash }}
-            file_type: M4A
-            meeting_id: "{{ session_uuid }}"
-            recording_type: audio_only
-            download_url: https://zoom.example/rec/webhook_download/{{ recording_hash }}/{{ fake.pystr(min_chars=340, max_chars=350) }}
-            file_extension: M4A
-            id: {{ fake.uuid4() }}
-            file_size: "{{ audio_only_size }}"
-            status: completed
-            recording_start: "{{ occurrence_actual_start.isoformat() }}Z"
-            recording_end: "{{ occurrence_actual_end.isoformat() }}Z"
-          {% set recording_hash = fake.pystr(min_chars=90, max_chars=120) %}
-          - play_url: https://zoom.example/rec/play/{{ recording_hash }}
-            file_type: MP4
-            meeting_id: "{{ session_uuid }}"
-            recording_type: shared_screen_with_speaker_view
-            download_url: https://zoom.example/rec/webhook_download/{{ recording_hash }}/{{ fake.pystr(min_chars=340, max_chars=350) }}
-            file_extension: MP4
-            id: {{ fake.uuid4() }}
-            file_size: "{{ shared_screen_with_speaker_view_size }}"
-            status: completed
-            recording_start: "{{ occurrence_actual_start.isoformat() }}Z"
-            recording_end: "{{ occurrence_actual_end.isoformat() }}Z"
-          {% set recording_hash = fake.pystr(min_chars=90, max_chars=120) %}
-          - play_url: https://zoom.example/rec/play/{{ recording_hash }}
-            meeting_id: "{{ session_uuid }}"
-            recording_type: chat_file
-            file_type: CHAT
-            download_url: https://zoom.example/rec/webhook_download/{{ recording_hash }}/{{ fake.pystr(min_chars=340, max_chars=350) }}
-            file_extension: TXT
-            id: {{ fake.uuid4() }}
-            file_size: "{{ chat_file_size }}"
-            recording_start: "{{ occurrence_actual_start.isoformat() }}Z"
-            status: completed
-            recording_end: "{{ occurrence_actual_end.isoformat() }}Z"
-        # `transcript_access` is filtered from the recording object.
-        # transcript_access: public
-        start_time: ""
-        host_id: {{ zoom_host_user }}
-        # Note, proj_id (sfid) in the source data will have been stripped by lfx-v1-sync-helper.
-        project_uid: !ref "buf_board_meeting_project_lookup.steps[0]._response"
-        modified_at: "{{ recording_modify_time.isoformat() }}Z"
-        project_slug: buf
-        transcript_enabled: true
-        host_email: itx+example999@lfx.linuxfoundation.org
-        sessions:
-          {% set share_hash = fake.pystr(min_chars=80, max_chars=90) %}
-          - total_size: "{{ total_size_without_transcript }}"
-            start_time: "{{ occurrence_actual_start.isoformat() }}Z"
-            password: ""
-            uuid: "{{ session_uuid }}"
-            share_url: https://zoom.example/rec/share/{{ share_hash }}
-        recording_count: "5"
-        meeting_and_occurrence_id: "{{ meeting_id }}-{{ occurrence_id }}"
-        meeting_id: "{{ meeting_id }}"
-        recording_access: public
+        action: created
+        headers:
+          authorization: !jwt bearer=true,aud=lfx-v2-project-service,principal={{ fake.user_name() }},email={{ fake.email() }}
+          x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=clients@m2m_helper
+        data:
+          # This is a filtered version of the v1 recordings object.
+          created_at: "{{ recording_create_time.isoformat() }}Z"
+          total_size: "{{ total_recording_size }}"
+          topic: Monthly Board Meeting
+          occurrence_id: "{{ occurrence_id }}"
+          # `visibility` is for the meeting and should not be used for this object.
+          # visibility: public
+          recording_files:
+            {% set recording_hash = fake.pystr(min_chars=90, max_chars=120) %}
+            - play_url: https://zoom.example/rec/play/{{ recording_hash }}
+              file_type: M4A
+              meeting_id: "{{ session_uuid }}"
+              recording_type: audio_only
+              download_url: https://zoom.example/rec/webhook_download/{{ recording_hash }}/{{ fake.pystr(min_chars=340, max_chars=350) }}
+              file_extension: M4A
+              id: {{ fake.uuid4() }}
+              file_size: "{{ audio_only_size }}"
+              status: completed
+              recording_start: "{{ occurrence_actual_start.isoformat() }}Z"
+              recording_end: "{{ occurrence_actual_end.isoformat() }}Z"
+            {% set recording_hash = fake.pystr(min_chars=90, max_chars=120) %}
+            - play_url: https://zoom.example/rec/play/{{ recording_hash }}
+              file_type: MP4
+              meeting_id: "{{ session_uuid }}"
+              recording_type: shared_screen_with_speaker_view
+              download_url: https://zoom.example/rec/webhook_download/{{ recording_hash }}/{{ fake.pystr(min_chars=340, max_chars=350) }}
+              file_extension: MP4
+              id: {{ fake.uuid4() }}
+              file_size: "{{ shared_screen_with_speaker_view_size }}"
+              status: completed
+              recording_start: "{{ occurrence_actual_start.isoformat() }}Z"
+              recording_end: "{{ occurrence_actual_end.isoformat() }}Z"
+            {% set recording_hash = fake.pystr(min_chars=90, max_chars=120) %}
+            - play_url: https://zoom.example/rec/play/{{ recording_hash }}
+              meeting_id: "{{ session_uuid }}"
+              recording_type: chat_file
+              file_type: CHAT
+              download_url: https://zoom.example/rec/webhook_download/{{ recording_hash }}/{{ fake.pystr(min_chars=340, max_chars=350) }}
+              file_extension: TXT
+              id: {{ fake.uuid4() }}
+              file_size: "{{ chat_file_size }}"
+              recording_start: "{{ occurrence_actual_start.isoformat() }}Z"
+              status: completed
+              recording_end: "{{ occurrence_actual_end.isoformat() }}Z"
+          # `transcript_access` is filtered from the recording object.
+          # transcript_access: public
+          start_time: ""
+          host_id: {{ zoom_host_user }}
+          # Note, proj_id (sfid) in the source data will have been stripped by lfx-v1-sync-helper.
+          project_uid: !ref "buf_board_meeting_project_lookup.steps[0]._response"
+          modified_at: "{{ recording_modify_time.isoformat() }}Z"
+          project_slug: buf
+          transcript_enabled: true
+          host_email: itx+example999@lfx.linuxfoundation.org
+          sessions:
+            {% set share_hash = fake.pystr(min_chars=80, max_chars=90) %}
+            - total_size: "{{ total_size_without_transcript }}"
+              start_time: "{{ occurrence_actual_start.isoformat() }}Z"
+              password: ""
+              uuid: "{{ session_uuid }}"
+              share_url: https://zoom.example/rec/share/{{ share_hash }}
+          recording_count: "5"
+          meeting_and_occurrence_id: "{{ meeting_id }}-{{ occurrence_id }}"
+          meeting_id: "{{ meeting_id }}"
+          recording_access: public
 
 buf_board_past_meeting_{{ past_meeting_index }}_recording_access_update:
   type: nats-publish
@@ -409,62 +429,67 @@ buf_board_past_meeting_{{ past_meeting_index }}_transcript_create:
   type: nats-publish
   params:
     # Create the past meeting transcript in OpenSearch (via indexer).
-    subject: lfx.index.v1_past_meeting_transcript.create
+    subject: lfx.index.v1_past_meeting_transcript
   steps:
     - json:
-        # This is a filtered version of the v1 recordings object.
-        created_at: "{{ recording_create_time.isoformat() }}Z"
-        total_size: "{{ total_recording_size }}"
-        topic: Monthly Board Meeting
-        occurrence_id: "{{ occurrence_id }}"
-        # `visibility` is for the meeting and should not be used for this object.
-        # visibility: public
-        recording_files:
-          {% set recording_hash = fake.pystr(min_chars=90, max_chars=120) %}
-          - play_url: ""
-            file_type: TIMELINE
-            meeting_id: "{{ session_uuid }}"
-            recording_type: timeline
-            download_url: https://zoom.example/rec/webhook_download/{{ recording_hash }}/{{ fake.pystr(min_chars=340, max_chars=350) }}
-            file_extension: JSON
-            id: {{ fake.uuid4() }}
-            file_size: "{{ timeline_size }}"
-            recording_end: "{{ occurrence_actual_end.isoformat() }}Z"
-            recording_start: "{{ occurrence_actual_start.isoformat() }}Z"
-            status: completed
-          {% set recording_hash = fake.pystr(min_chars=90, max_chars=120) %}
-          - play_url: https://zoom.example/rec/play/{{ recording_hash }}
-            meeting_id: "{{ session_uuid }}"
-            file_type: TRANSCRIPT
-            recording_type: audio_transcript
-            download_url: https://zoom.example/rec/webhook_download/{{ recording_hash }}/{{ fake.pystr(min_chars=340, max_chars=350) }}
-            file_extension: VTT
-            id: {{ fake.uuid4() }}
-            file_size: "{{ audio_transcript_size }}"
-            recording_start: "{{ occurrence_actual_start.isoformat() }}Z"
-            status: completed
-            recording_end: "{{ occurrence_actual_end.isoformat() }}Z"
-        transcript_access: public
-        start_time: ""
-        host_id: {{ zoom_host_user }}
-        # Note, proj_id (sfid) in the source data will have been stripped by lfx-v1-sync-helper.
-        project_uid: !ref "buf_board_meeting_project_lookup.steps[0]._response"
-        modified_at: "{{ recording_modify_time.isoformat() }}Z"
-        project_slug: buf
-        transcript_enabled: true
-        host_email: itx+example999@lfx.linuxfoundation.org
-        sessions:
-          {% set share_hash = fake.pystr(min_chars=80, max_chars=90) %}
-          - total_size: "{{ total_size_without_transcript }}"
-            start_time: "{{ occurrence_actual_start.isoformat() }}Z"
-            password: ""
-            uuid: "{{ session_uuid }}"
-            share_url: https://zoom.example/rec/share/{{ share_hash }}
-        recording_count: "5"
-        meeting_and_occurrence_id: "{{ meeting_id }}-{{ occurrence_id }}"
-        meeting_id: "{{ meeting_id }}"
-        # `recording_access` is filtered from the transcript object.
-        # recording_access: public
+        action: created
+        headers:
+          authorization: !jwt bearer=true,aud=lfx-v2-project-service,principal={{ fake.user_name() }},email={{ fake.email() }}
+          x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=clients@m2m_helper
+        data:
+          # This is a filtered version of the v1 recordings object.
+          created_at: "{{ recording_create_time.isoformat() }}Z"
+          total_size: "{{ total_recording_size }}"
+          topic: Monthly Board Meeting
+          occurrence_id: "{{ occurrence_id }}"
+          # `visibility` is for the meeting and should not be used for this object.
+          # visibility: public
+          recording_files:
+            {% set recording_hash = fake.pystr(min_chars=90, max_chars=120) %}
+            - play_url: ""
+              file_type: TIMELINE
+              meeting_id: "{{ session_uuid }}"
+              recording_type: timeline
+              download_url: https://zoom.example/rec/webhook_download/{{ recording_hash }}/{{ fake.pystr(min_chars=340, max_chars=350) }}
+              file_extension: JSON
+              id: {{ fake.uuid4() }}
+              file_size: "{{ timeline_size }}"
+              recording_end: "{{ occurrence_actual_end.isoformat() }}Z"
+              recording_start: "{{ occurrence_actual_start.isoformat() }}Z"
+              status: completed
+            {% set recording_hash = fake.pystr(min_chars=90, max_chars=120) %}
+            - play_url: https://zoom.example/rec/play/{{ recording_hash }}
+              meeting_id: "{{ session_uuid }}"
+              file_type: TRANSCRIPT
+              recording_type: audio_transcript
+              download_url: https://zoom.example/rec/webhook_download/{{ recording_hash }}/{{ fake.pystr(min_chars=340, max_chars=350) }}
+              file_extension: VTT
+              id: {{ fake.uuid4() }}
+              file_size: "{{ audio_transcript_size }}"
+              recording_start: "{{ occurrence_actual_start.isoformat() }}Z"
+              status: completed
+              recording_end: "{{ occurrence_actual_end.isoformat() }}Z"
+          transcript_access: public
+          start_time: ""
+          host_id: {{ zoom_host_user }}
+          # Note, proj_id (sfid) in the source data will have been stripped by lfx-v1-sync-helper.
+          project_uid: !ref "buf_board_meeting_project_lookup.steps[0]._response"
+          modified_at: "{{ recording_modify_time.isoformat() }}Z"
+          project_slug: buf
+          transcript_enabled: true
+          host_email: itx+example999@lfx.linuxfoundation.org
+          sessions:
+            {% set share_hash = fake.pystr(min_chars=80, max_chars=90) %}
+            - total_size: "{{ total_size_without_transcript }}"
+              start_time: "{{ occurrence_actual_start.isoformat() }}Z"
+              password: ""
+              uuid: "{{ session_uuid }}"
+              share_url: https://zoom.example/rec/share/{{ share_hash }}
+          recording_count: "5"
+          meeting_and_occurrence_id: "{{ meeting_id }}-{{ occurrence_id }}"
+          meeting_id: "{{ meeting_id }}"
+          # `recording_access` is filtered from the transcript object.
+          # recording_access: public
 
 buf_board_past_meeting_{{ past_meeting_index }}_transcript_access_update:
   type: nats-publish
@@ -483,50 +508,55 @@ buf_board_past_meeting_{{ past_meeting_index }}_summary_create:
   type: nats-publish
   params:
     # Create the registered participant in OpenSearch (via indexer).
-    subject: lfx.index.v1_meeting_summary.create
+    subject: lfx.index.v1_meeting_summary
   steps:
     - json:
-        summary_details:
-          {% for i in range(fake.pyint(min_value=8, max_value=12)) %}
-          - summary: >-
-              {% for i in range(fake.pyint(min_value=3, max_value=6)) -%}
-              {{ fake.sentence() }}
-              {% endfor %}
-            label: {{ fake.catch_phrase() }}
-          {% endfor %}
-        requires_approval: true
-        zoom_meeting_uuid: {{ session_uuid }}
-        edited_next_steps: null
-        approved: false
-        summary_created_time: "{{ summary_create_time.isoformat() }}Z"
-        password: {{ fake.uuid4() }}
-        summary_last_modified_time: "{{ summary_create_time.isoformat() }}Z"
-        summary_start_time: "{{ occurrence_actual_start.isoformat() }}Z"
-        summary_title: Meeting Summary for Monthly Board Meeting
-        zoom_meeting_topic: Monthly Board Meeting
-        meeting_and_occurrence_id: "{{ meeting_id }}-{{ occurrence_id }}"
-        id: {{ fake.uuid4() }}
-        meeting_id: "{{ meeting_id }}"
-        edited_summary_details: null
-        email_sent: true
-        created_at: "{{ summary_create_time.isoformat() }}Z"
-        edited_summary_overview: ""
-        next_steps:
-          {% for i in range(fake.pyint(min_value=8, max_value=11)) %}
-          - "{{ fake.first_name() }}: {{ fake.bs() }} and {{ fake.bs() }}"
-          {% endfor %}
-        occurrence_id: "{{ occurrence_id }}"
-        summary_end_time: "{{ occurrence_actual_end.isoformat() }}Z"
-        modified_at: "{{ summary_create_time.isoformat() }}Z"
-        zoom_meeting_host_email: itx+example999@lfx.linuxfoundation.org
-        # TODO.
-        zoom_webhook_event: '{"event":"event.name","event_ts":9999,"payload":{"key":"value"}}'
-        zoom_meeting_host_id: "{{ zoom_host_user }}"
-        summary_overview: >-
-          The Board meeting {{ fake.sentence(nb_words=6).lower() -}}
-          {% for i in range(fake.pyint(min_value=2, max_value=5)) -%}
-          {{ fake.sentence() -}}
-          {% endfor %}
+        action: created
+        headers:
+          authorization: !jwt bearer=true,aud=lfx-v2-project-service,principal={{ fake.user_name() }},email={{ fake.email() }}
+          x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=clients@m2m_helper
+        data:
+          summary_details:
+            {% for i in range(fake.pyint(min_value=8, max_value=12)) %}
+            - summary: >-
+                {% for i in range(fake.pyint(min_value=3, max_value=6)) -%}
+                {{ fake.sentence() }}
+                {% endfor %}
+              label: {{ fake.catch_phrase() }}
+            {% endfor %}
+          requires_approval: true
+          zoom_meeting_uuid: {{ session_uuid }}
+          edited_next_steps: null
+          approved: false
+          summary_created_time: "{{ summary_create_time.isoformat() }}Z"
+          password: {{ fake.uuid4() }}
+          summary_last_modified_time: "{{ summary_create_time.isoformat() }}Z"
+          summary_start_time: "{{ occurrence_actual_start.isoformat() }}Z"
+          summary_title: Meeting Summary for Monthly Board Meeting
+          zoom_meeting_topic: Monthly Board Meeting
+          meeting_and_occurrence_id: "{{ meeting_id }}-{{ occurrence_id }}"
+          id: {{ fake.uuid4() }}
+          meeting_id: "{{ meeting_id }}"
+          edited_summary_details: null
+          email_sent: true
+          created_at: "{{ summary_create_time.isoformat() }}Z"
+          edited_summary_overview: ""
+          next_steps:
+            {% for i in range(fake.pyint(min_value=8, max_value=11)) %}
+            - "{{ fake.first_name() }}: {{ fake.bs() }} and {{ fake.bs() }}"
+            {% endfor %}
+          occurrence_id: "{{ occurrence_id }}"
+          summary_end_time: "{{ occurrence_actual_end.isoformat() }}Z"
+          modified_at: "{{ summary_create_time.isoformat() }}Z"
+          zoom_meeting_host_email: itx+example999@lfx.linuxfoundation.org
+          # TODO.
+          zoom_webhook_event: '{"event":"event.name","event_ts":9999,"payload":{"key":"value"}}'
+          zoom_meeting_host_id: "{{ zoom_host_user }}"
+          summary_overview: >-
+            The Board meeting {{ fake.sentence(nb_words=6).lower() -}}
+            {% for i in range(fake.pyint(min_value=2, max_value=5)) -%}
+            {{ fake.sentence() -}}
+            {% endfor %}
 
 buf_board_past_meetings_{{ past_meeting_index }}_summary_access_update:
   type: nats-publish
@@ -544,7 +574,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_participants_create:
   type: nats-publish
   params:
     # Create the registered participant in OpenSearch (via indexer).
-    subject: lfx.index.v1_past_meeting_participant.create
+    subject: lfx.index.v1_past_meeting_participant
   steps:
     {% for i in range(board_member_count) -%}
     {# 50-50 chance of this participant also being an attender #}
@@ -560,58 +590,62 @@ buf_board_past_meeting_{{ past_meeting_index }}_participants_create:
     ) %}
     {% endif %}
     - json:
-        # v2 attributes for convenience.
-        is_invited: true
-        is_attended: {{ is_attended }}
-        # The remaining attributes are a combination of synced ITX "attendees"
-        # and "invitees" table data.
-        org: !ref "buf_board_members.steps[{{ i }}].json.organization.name"
-        committee_role: !ref "buf_board_members.steps[{{ i }}].json.role.name"
-        org_is_project_member: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.org_is_project_member"
-        registrant_id: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.registrant_id"
-        invitee_id: {{ fake.uuid4() }}
-        email: !ref "buf_board_members.steps[{{ i }}].json.email"
-        first_name: !ref "buf_board_members.steps[{{ i }}].json.first_name"
-        last_name: !ref "buf_board_members.steps[{{ i }}].json.last_name"
-        job_title: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.job_title"
-        project_slug: buf
-        profile_picture: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.profile_picture"
-        committee_voting_status: !ref "buf_board_members.steps[{{ i }}].json.voting.status"
-        meeting_id: "{{ meeting_id }}"
-        meeting_and_occurrence_id: "{{ meeting_id }}-{{ occurrence_id }}"
-        created_at: "{{ occurrence_created.isoformat() }}Z"
-        occurrence_id: "{{ occurrence_id }}"
-        org_is_member: false
-        # Note, proj_id (sfid) in the source data will have been stripped by lfx-v1-sync-helper.
-        project_uid: !ref "buf_board_meeting_project_lookup.steps[0]._response"
-        {% if is_attended %}
-        modified_at: "{{ (attendee_leave_time + timedelta(seconds=3)).isoformat() }}Z"
-        {% else %}
-        modified_at: "{{ occurrence_modified.isoformat() }}Z"
-        {% endif %}
-        # Note, lf_user_id (sfid) is stripped by lfx-v1-sync-helper.
-        lf_sso: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.username"
-        committee_id: !ref "buf_committees.steps[?json.name == 'Governing Board']._response.uid | [0]"
-        {% if is_attended %}
-        # name is captured for attendees only (first/last are captured for invitees).
-        name: !sub "${ buf_board_members.steps[{{ i }}].json.first_name } ${ buf_board_members.steps[{{ i }}].json.last_name }"
-        # more attendee-specific fields:
-        sessions:
-          - leave_time: "{{ attendee_leave_time.isoformat() }}Z"
-            leave_reason: 'left the meeting. Reason : left the meeting'
-            join_time: "{{ attendee_join_time.isoformat() }}Z"
-            participant_uuid: "{{ fake.uuid4().upper() }}"
-        # TODO: is this actually random, or should it match something?
-        id: "{{ fake.uuid4() }}"
-        # This seems wrong in the observed source data (it's false even though
-        # committee_voting_status is set!). Keeping as-is for fidelity.
-        is_committee_member: false
-        is_verified: true
-        is_unknown: false
-        AverageAttendance: "0"
-        {% endif %}
+        action: created
+        headers:
+          authorization: !jwt bearer=true,aud=lfx-v2-project-service,principal={{ fake.user_name() }},email={{ fake.email() }}
+          x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=clients@m2m_helper
+          data:
+          # v2 attributes for convenience.
+          is_invited: true
+          is_attended: {{ is_attended }}
+          # The remaining attributes are a combination of synced ITX "attendees"
+          # and "invitees" table data.
+          org: !ref "buf_board_members.steps[{{ i }}].json.organization.name"
+          committee_role: !ref "buf_board_members.steps[{{ i }}].json.role.name"
+          org_is_project_member: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.org_is_project_member"
+          registrant_id: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.registrant_id"
+          invitee_id: {{ fake.uuid4() }}
+          email: !ref "buf_board_members.steps[{{ i }}].json.email"
+          first_name: !ref "buf_board_members.steps[{{ i }}].json.first_name"
+          last_name: !ref "buf_board_members.steps[{{ i }}].json.last_name"
+          job_title: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.job_title"
+          project_slug: buf
+          profile_picture: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.profile_picture"
+          committee_voting_status: !ref "buf_board_members.steps[{{ i }}].json.voting.status"
+          meeting_id: "{{ meeting_id }}"
+          meeting_and_occurrence_id: "{{ meeting_id }}-{{ occurrence_id }}"
+          created_at: "{{ occurrence_created.isoformat() }}Z"
+          occurrence_id: "{{ occurrence_id }}"
+          org_is_member: false
+          # Note, proj_id (sfid) in the source data will have been stripped by lfx-v1-sync-helper.
+          project_uid: !ref "buf_board_meeting_project_lookup.steps[0]._response"
+          {% if is_attended %}
+          modified_at: "{{ (attendee_leave_time + timedelta(seconds=3)).isoformat() }}Z"
+          {% else %}
+          modified_at: "{{ occurrence_modified.isoformat() }}Z"
+          {% endif %}
+          # Note, lf_user_id (sfid) is stripped by lfx-v1-sync-helper.
+          lf_sso: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.username"
+          committee_id: !ref "buf_committees.steps[?json.name == 'Governing Board']._response.uid | [0]"
+          {% if is_attended %}
+          # name is captured for attendees only (first/last are captured for invitees).
+          name: !sub "${ buf_board_members.steps[{{ i }}].json.first_name } ${ buf_board_members.steps[{{ i }}].json.last_name }"
+          # more attendee-specific fields:
+          sessions:
+            - leave_time: "{{ attendee_leave_time.isoformat() }}Z"
+              leave_reason: 'left the meeting. Reason : left the meeting'
+              join_time: "{{ attendee_join_time.isoformat() }}Z"
+              participant_uuid: "{{ fake.uuid4().upper() }}"
+          # TODO: is this actually random, or should it match something?
+          id: "{{ fake.uuid4() }}"
+          # This seems wrong in the observed source data (it's false even though
+          # committee_voting_status is set!). Keeping as-is for fidelity.
+          is_committee_member: false
+          is_verified: true
+          is_unknown: false
+          AverageAttendance: "0"
+          {% endif %}
     {% endfor %}
-
 
 buf_board_past_meeting_{{ past_meeting_index }}_participants_access_update:
   type: nats-publish
@@ -633,7 +667,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_participants_access_update:
 buf_board_past_meeting_{{ past_meeting_index }}_participant_guests_create:
   type: nats-publish
   params:
-    subject: lfx.index.v1_past_meeting_participant.create
+    subject: lfx.index.v1_past_meeting_participant
   steps:
     {% for i in range(fake.pyint(min_value=1, max_value=2)) -%}
     {% set attendee_join_time = fake.date_time_between(
@@ -645,42 +679,47 @@ buf_board_past_meeting_{{ past_meeting_index }}_participant_guests_create:
       end_date=occurrence_actual_end,
     ) %}
     - json:
-        # v2 attributes for convenience.
-        is_invited: false
-        is_attended: true
-        # The remaining attributes only come from the ITX "attendees" table, so
-        # some things are missing (like first/last names).
-        org: ""
-        committee_role: ""
-        org_is_project_member: false
-        registrant_id: ""
-        email: ""
-        name: "{{ fake.name() }} ({{ fake.company() }})"
-        project_slug: buf
-        profile_picture: ""
-        is_committee_member: false
-        committee_voting_status: ""
-        sessions:
-          - leave_time: "{{ attendee_leave_time.isoformat() }}Z"
-            leave_reason: 'left the meeting. Reason : left the meeting'
-            join_time: "{{ attendee_join_time.isoformat() }}Z"
-            participant_uuid: "{{ fake.uuid4().upper() }}"
-        meeting_and_occurrence_id: "{{ meeting_id }}-{{ occurrence_id }}"
-        id: "{{ fake.uuid4() }}"
-        meeting_id: "{{ meeting_id }}"
-        is_verified: false
-        job_title: ""
-        is_unknown: false
-        AverageAttendance: "0"
-        created_at: "{{ (attendee_join_time + timedelta(seconds=3)).isoformat() }}Z"
-        occurrence_id: "{{ occurrence_id }}"
-        org_is_member: false
-        # Note, proj_id (sfid) in the source data will have been stripped by lfx-v1-sync-helper.
-        project_uid: !ref "buf_board_meeting_project_lookup.steps[0]._response"
-        modified_at: "{{ (attendee_leave_time + timedelta(seconds=3)).isoformat() }}Z"
-        # Note, lf_user_id (sfid) is stripped by lfx-v1-sync-helper.
-        lf_sso: ""
-        committee_id: ""
+        action: created
+        headers:
+          authorization: !jwt bearer=true,aud=lfx-v2-project-service,principal={{ fake.user_name() }},email={{ fake.email() }}
+          x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=clients@m2m_helper
+        data:
+          # v2 attributes for convenience.
+          is_invited: false
+          is_attended: true
+          # The remaining attributes only come from the ITX "attendees" table, so
+          # some things are missing (like first/last names).
+          org: ""
+          committee_role: ""
+          org_is_project_member: false
+          registrant_id: ""
+          email: ""
+          name: "{{ fake.name() }} ({{ fake.company() }})"
+          project_slug: buf
+          profile_picture: ""
+          is_committee_member: false
+          committee_voting_status: ""
+          sessions:
+            - leave_time: "{{ attendee_leave_time.isoformat() }}Z"
+              leave_reason: 'left the meeting. Reason : left the meeting'
+              join_time: "{{ attendee_join_time.isoformat() }}Z"
+              participant_uuid: "{{ fake.uuid4().upper() }}"
+          meeting_and_occurrence_id: "{{ meeting_id }}-{{ occurrence_id }}"
+          id: "{{ fake.uuid4() }}"
+          meeting_id: "{{ meeting_id }}"
+          is_verified: false
+          job_title: ""
+          is_unknown: false
+          AverageAttendance: "0"
+          created_at: "{{ (attendee_join_time + timedelta(seconds=3)).isoformat() }}Z"
+          occurrence_id: "{{ occurrence_id }}"
+          org_is_member: false
+          # Note, proj_id (sfid) in the source data will have been stripped by lfx-v1-sync-helper.
+          project_uid: !ref "buf_board_meeting_project_lookup.steps[0]._response"
+          modified_at: "{{ (attendee_leave_time + timedelta(seconds=3)).isoformat() }}Z"
+          # Note, lf_user_id (sfid) is stripped by lfx-v1-sync-helper.
+          lf_sso: ""
+          committee_id: ""
     {% endfor %}
 
 {# Find the next past meeting time based on the same day-of-week and
