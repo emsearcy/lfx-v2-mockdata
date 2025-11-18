@@ -269,7 +269,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_create:
           is_manually_created: false
           project_slug: buf
           scheduled_end_time: "{{ (ns.occurrence_start_time + timedelta(minutes=meeting_duration)).isoformat() }}Z"
-          recurrence: !ref buf_board_meeting_create.steps[0].json.recurrence
+          recurrence: !ref buf_board_meeting_create.steps[0].json.data.recurrence
           zoom_ai_enabled: true
           transcript_enabled: true
           early_join_time: "10"
@@ -293,7 +293,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_create:
           # lfx-v1-sync-helper. We'll still keep project_slug, though.
           project_uid: !ref "buf_board_meeting_project_lookup.steps[0]._response"
           modified_at: {{ occurrence_modified.isoformat() }}Z"
-          timezone: !ref buf_board_meeting_create.steps[0].json.timezone
+          timezone: !ref buf_board_meeting_create.steps[0].json.data.timezone
           ai_summary_access: public
           # TODO ... what is this? (it didn't necesesarily match recurrence.type in my test data)
           type: "3"
@@ -602,15 +602,15 @@ buf_board_past_meeting_{{ past_meeting_index }}_participants_create:
           # and "invitees" table data.
           org: !ref "buf_board_members.steps[{{ i }}].json.organization.name"
           committee_role: !ref "buf_board_members.steps[{{ i }}].json.role.name"
-          org_is_project_member: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.org_is_project_member"
-          registrant_id: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.registrant_id"
+          org_is_project_member: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.data.org_is_project_member"
+          registrant_id: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.data.registrant_id"
           invitee_id: {{ fake.uuid4() }}
           email: !ref "buf_board_members.steps[{{ i }}].json.email"
           first_name: !ref "buf_board_members.steps[{{ i }}].json.first_name"
           last_name: !ref "buf_board_members.steps[{{ i }}].json.last_name"
-          job_title: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.job_title"
+          job_title: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.data.job_title"
           project_slug: buf
-          profile_picture: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.profile_picture"
+          profile_picture: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.data.profile_picture"
           committee_voting_status: !ref "buf_board_members.steps[{{ i }}].json.voting.status"
           meeting_id: "{{ meeting_id }}"
           meeting_and_occurrence_id: "{{ meeting_id }}-{{ occurrence_id }}"
@@ -625,7 +625,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_participants_create:
           modified_at: "{{ occurrence_modified.isoformat() }}Z"
           {% endif %}
           # Note, lf_user_id (sfid) is stripped by lfx-v1-sync-helper.
-          lf_sso: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.username"
+          lf_sso: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.data.username"
           committee_id: !ref "buf_committees.steps[?json.name == 'Governing Board']._response.uid | [0]"
           {% if is_attended %}
           # name is captured for attendees only (first/last are captured for invitees).
