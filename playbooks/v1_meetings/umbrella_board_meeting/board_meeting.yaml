@@ -136,7 +136,7 @@ buf_board_meeting_access_update:
     # Add meeting relationships in OpenFGA (via fga-sync).
     subject: lfx.update_access.v1_meeting
   steps:
-    - json: !ref buf_board_meeting_create.steps[0].json
+    - json: !ref buf_board_meeting_create.steps[0].json.data
 
 #
 # Participants for the scheduled meeting itself.
@@ -211,7 +211,7 @@ buf_board_meeting_committee_participants_access_update:
     {% for i in range(board_member_count) %}
     {% if member_has_username[i] %}
     {# Only send access update if the member has a username! #}
-    - json: !ref buf_board_meeting_committee_participants_create.steps[{{ i }}].json
+    - json: !ref buf_board_meeting_committee_participants_create.steps[{{ i }}].json.data
     {% endif %}
     {% endfor %}
 
@@ -269,7 +269,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_create:
           is_manually_created: false
           project_slug: buf
           scheduled_end_time: "{{ (ns.occurrence_start_time + timedelta(minutes=meeting_duration)).isoformat() }}Z"
-          recurrence: !ref buf_board_meeting_create.steps[0].json.recurrence
+          recurrence: !ref buf_board_meeting_create.steps[0].json.data.recurrence
           zoom_ai_enabled: true
           transcript_enabled: true
           early_join_time: "10"
@@ -293,7 +293,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_create:
           # lfx-v1-sync-helper. We'll still keep project_slug, though.
           project_uid: !ref "buf_board_meeting_project_lookup.steps[0]._response"
           modified_at: {{ occurrence_modified.isoformat() }}Z"
-          timezone: !ref buf_board_meeting_create.steps[0].json.timezone
+          timezone: !ref buf_board_meeting_create.steps[0].json.data.timezone
           ai_summary_access: public
           # TODO ... what is this? (it didn't necesesarily match recurrence.type in my test data)
           type: "3"
@@ -304,7 +304,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_access_update:
     # Add past meeting relationships in OpenFGA (via fga-sync).
     subject: lfx.update_access.v1_past_meeting
   steps:
-    - json: !ref buf_board_past_meeting_{{ past_meeting_index }}_create.steps[0].json
+    - json: !ref buf_board_past_meeting_{{ past_meeting_index }}_create.steps[0].json.data
 
 #
 # Meeting artifacts (recording, transcript, summary) for each past meeting.
@@ -423,7 +423,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_recording_access_update:
     # Add past meeting recording relationships in OpenFGA (via fga-sync).
     subject: lfx.update_access.v1_past_meeting_recording
   steps:
-    - json: !ref buf_board_past_meeting_{{ past_meeting_index }}_recording_create.steps[0].json
+    - json: !ref buf_board_past_meeting_{{ past_meeting_index }}_recording_create.steps[0].json.data
 
 buf_board_past_meeting_{{ past_meeting_index }}_transcript_create:
   type: nats-publish
@@ -497,7 +497,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_transcript_access_update:
     # Add past meeting transcript relationships in OpenFGA (via fga-sync).
     subject: lfx.update_access.v1_past_meeting_transcript
   steps:
-    - json: !ref buf_board_past_meeting_{{ past_meeting_index }}_transcript_create.steps[0].json
+    - json: !ref buf_board_past_meeting_{{ past_meeting_index }}_transcript_create.steps[0].json.data
 
 {% set summary_create_time = fake.date_time_between(
   start_date=occurrence_actual_end,
@@ -564,7 +564,7 @@ buf_board_past_meetings_{{ past_meeting_index }}_summary_access_update:
     # The past meeting AI summary (to fga-sync).
     subject: lfx.update_access.v1_past_meeting_summary
   steps:
-    - json: !ref buf_board_past_meeting_{{ past_meeting_index }}_summary_create.steps[0].json
+    - json: !ref buf_board_past_meeting_{{ past_meeting_index }}_summary_create.steps[0].json.data
 
 #
 # Add participants for past meeting occurrence #{{ past_meeting_index }}.
@@ -602,15 +602,15 @@ buf_board_past_meeting_{{ past_meeting_index }}_participants_create:
           # and "invitees" table data.
           org: !ref "buf_board_members.steps[{{ i }}].json.organization.name"
           committee_role: !ref "buf_board_members.steps[{{ i }}].json.role.name"
-          org_is_project_member: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.org_is_project_member"
-          registrant_id: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.registrant_id"
+          org_is_project_member: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.data.org_is_project_member"
+          registrant_id: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.data.registrant_id"
           invitee_id: {{ fake.uuid4() }}
           email: !ref "buf_board_members.steps[{{ i }}].json.email"
           first_name: !ref "buf_board_members.steps[{{ i }}].json.first_name"
           last_name: !ref "buf_board_members.steps[{{ i }}].json.last_name"
-          job_title: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.job_title"
+          job_title: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.data.job_title"
           project_slug: buf
-          profile_picture: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.profile_picture"
+          profile_picture: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.data.profile_picture"
           committee_voting_status: !ref "buf_board_members.steps[{{ i }}].json.voting.status"
           meeting_id: "{{ meeting_id }}"
           meeting_and_occurrence_id: "{{ meeting_id }}-{{ occurrence_id }}"
@@ -625,7 +625,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_participants_create:
           modified_at: "{{ occurrence_modified.isoformat() }}Z"
           {% endif %}
           # Note, lf_user_id (sfid) is stripped by lfx-v1-sync-helper.
-          lf_sso: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.username"
+          lf_sso: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.data.username"
           committee_id: !ref "buf_committees.steps[?json.name == 'Governing Board']._response.uid | [0]"
           {% if is_attended %}
           # name is captured for attendees only (first/last are captured for invitees).
@@ -656,7 +656,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_participants_access_update:
     {% for i in range(board_member_count) %}
     {% if member_has_username[i] %}
     {# Only send access update if the member has a username! #}
-    - json: !ref buf_board_past_meeting_{{ past_meeting_index }}_participants_create.steps[{{ i }}].json
+    - json: !ref buf_board_past_meeting_{{ past_meeting_index }}_participants_create.steps[{{ i }}].json.data
     {% endif %}
     {% endfor %}
 
