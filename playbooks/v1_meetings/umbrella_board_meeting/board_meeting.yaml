@@ -58,13 +58,13 @@ buf_board_meeting_create:
         {% set week_of_month = (meeting_start_time.day / 7) | round(0, 'ceil') | int %}
         topic: Monthly Board Meeting
         visibility: public
-        agenda: "Monthly meeting for the Big Umbrella Foundation board. {{ lorem.get_sentence() }}"
+        agenda: "Monthly meeting for the Big Umbrella Foundation board. {{ fake.sentence() }}"
         # This is rewritten as an array to incorporate the "mappings" one-to-many table.
         committees:
           - uid: !ref "buf_committees.steps[?json.name == 'Governing Board']._response.uid | [0]"
             filters: []
         restricted: false
-        password: {{ uuid() }}
+        password: {{ fake.uuid4() }}
         recurrence:
           # 100 years from initial meeting.
           end_date_time: "{{ (meeting_start_time + timedelta(days=365*100)).isoformat() }}Z"
@@ -242,7 +242,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_create:
         topic: Monthly Board Meeting
         artifacts: null
         visibility: public
-        agenda: "Monthly meeting for the Big Umbrella Foundation board. {{ lorem.get_sentence() }}"
+        agenda: "Monthly meeting for the Big Umbrella Foundation board. {{ fake.sentence() }}"
         committees:
           - uid: !ref "buf_committees.steps[?json.name == 'Governing Board']._response.uid | [0]"
             filters:
@@ -490,7 +490,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_summary_create:
           {% for i in range(fake.pyint(min_value=8, max_value=12)) %}
           - summary: >-
               {% for i in range(fake.pyint(min_value=3, max_value=6)) -%}
-              {{ lorem.get_sentence() }}
+              {{ fake.sentence() }}
               {% endfor %}
             label: {{ fake.catch_phrase() }}
           {% endfor %}
@@ -525,7 +525,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_summary_create:
         summary_overview: >-
           The Board meeting {{ fake.sentence(nb_words=6).lower() -}}
           {% for i in range(fake.pyint(min_value=2, max_value=5)) -%}
-          {{ lorem.get_sentence() -}}
+          {{ fake.sentence() -}}
           {% endfor %}
 
 buf_board_past_meetings_{{ past_meeting_index }}_summary_access_update:
@@ -562,7 +562,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_participants_create:
     - json:
         # v2 attributes for convenience.
         is_invited: true
-        is_attended: {{ is_attended }} 
+        is_attended: {{ is_attended }}
         # The remaining attributes are a combination of synced ITX "attendees"
         # and "invitees" table data.
         org: !ref "buf_board_members.steps[{{ i }}].json.organization.name"

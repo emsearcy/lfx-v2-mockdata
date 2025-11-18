@@ -7,7 +7,7 @@ sample_umbrella_buf:
     url: {{ environ.PROJECTS_URL | default("http://lfx-v2-project-service.lfx.svc.cluster.local:8080/projects") }}
     method: POST
     headers:
-      Authorization: Bearer {{ environ.PROJECTS_TOKEN | default("-") }}
+      Authorization: !jwt bearer=true,aud=lfx-v2-project-service,principal=clients@m2m_helper
   steps:
     - json:
         slug: buf
@@ -26,14 +26,14 @@ sample_umbrella_buf:
         stage: Active
         website_url: https://buf-foundation.example/
     {% for buf_child in range(25) %}
-    {% set buf_child_name = generate_name(style='capital') %}
+    {% set buf_child_name = fake.catch_phrase().title() %}
     - json:
         slug: {{ buf_child_name | lower | replace(" ", "-") }}
         name: {{ buf_child_name }} Project
         description: >-
           {{ buf_child_name }}
-          {{ lorem.get_sentence().lower() }}
-          {{ lorem.get_sentence() }}
+          {{ fake.sentence().lower() }}
+          {{ fake.sentence() }}
         public: true
         # Children's parent is the umbrella; legal parent is Linux Foundation.
         parent_uid: !ref "sample_umbrella_buf.steps[0]._response.uid"
@@ -69,14 +69,14 @@ sample_umbrella_iubp:
         repository_url: https://example.com/iubp-consortium
         website_url: https://iubp.example/
     {% for iubp_child in range(15) %}
-    {% set iubp_child_name = generate_name(style='capital') %}
+    {% set iubp_child_name = fake.catch_phrase().title() %}
     - json:
         slug: {{ iubp_child_name | lower | replace(" ", "-") }}
         name: {{ iubp_child_name }} Project
         description: >-
           {{ iubp_child_name }}
-          {{ lorem.get_sentence().lower() }}
-          {{ lorem.get_sentence() }}
+          {{ fake.sentence().lower() }}
+          {{ fake.sentence() }}
         public: true
         # Of course, despite looking like valid Series LLC names, these are of
         # course FAKE and for testing only.

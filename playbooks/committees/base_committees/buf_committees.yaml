@@ -14,7 +14,7 @@ buf_committees:
     url: {{ environ.COMMITTEES_URL | default("http://lfx-v2-committee-service.lfx.svc.cluster.local:8080/committees") }}
     method: POST
     headers:
-      Authorization: Bearer {{ environ.COMMITTEES_TOKEN | default("-") }}
+      Authorization: !jwt bearer=true,aud=lfx-v2-committee-service,principal=clients@m2m_helper
   steps:
     - json:
         name: Governing Board
