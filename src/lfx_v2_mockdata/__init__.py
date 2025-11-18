@@ -89,6 +89,11 @@ retries_remaining: contextvars.ContextVar[int] = contextvars.ContextVar(
 nats_client: None | NatsClient = None
 jetstream_client: None | JetStreamContext = None
 
+# JWT caching variables.
+_jwt_cache: dict[str, tuple[str, float]] = {}  # Cache JWT tokens with expiry.
+_jwks_kid_cache: str = ""  # Cache JWKS key ID.
+JWT_CACHE_TTL = 240  # Cache JWT tokens for 4 minutes (1 minute before expiry).
+
 # NATS configuration.
 NATS_URL = os.getenv("NATS_URL", "nats://nats:4222")
 WAIT_TIMEOUT = 10  # seconds
@@ -263,6 +268,8 @@ class JWTGenerator(yaml.YAMLObject):
 
     def generate_jwt(self) -> str:
         """Generate a JWT token based on the provided arguments."""
+        global _jwt_cache
+
         cli_args = args.get()
 
         # Check if we have the RSA secret.
@@ -281,18 +288,29 @@ class JWTGenerator(yaml.YAMLObject):
         # Optional email.
         email = self.parsed_args.get("email")
 
+        # Create cache key based on the JWT arguments.
+        bearer = self.parsed_args.get("bearer")
+        cache_key = f"{audience}|{principal}|{email or ''}|{bearer or ''}"
+
+        # Check if we have a cached JWT that's still valid.
+        now = time.time()
+        if cache_key in _jwt_cache:
+            cached_token, cache_time = _jwt_cache[cache_key]
+            if now - cache_time < JWT_CACHE_TTL:
+                return cached_token
+
         # Get or fetch the key ID.
         key_id = self._get_key_id(cli_args)
 
         # Create JWT payload.
-        now = int(time.time())
+        now_int = int(now)
         payload = {
             "aud": audience,
             "iss": "heimdall",
             "sub": principal.replace("clients@", ""),  # Remove clients@ prefix.
             "principal": principal,
-            "exp": now + 300,  # 5 minutes expiry.
-            "nbf": now,  # Valid from now.
+            "exp": now_int + 300,  # 5 minutes expiry.
+            "nbf": now_int,  # Valid from now.
             "jti": fake.uuid4(),  # Unique JWT ID.
         }
 
@@ -322,24 +340,32 @@ class JWTGenerator(yaml.YAMLObject):
             headers={"kid": key_id},
         )
 
-        bearer = self.parsed_args.get("bearer")
         if bearer and bearer.lower() in ("true", "t", "1", "yes", "y"):
             token = f"Bearer {token}"
+
+        # Cache the generated token.
+        _jwt_cache[cache_key] = (token, now)
 
         return token
 
     def _get_key_id(self, cli_args) -> str:
         """Get the JWT key ID from command line argument or JWKS endpoint."""
+        global _jwks_kid_cache
+
         # Use command line argument if provided.
         if cli_args.jwt_key_id:
             return cli_args.jwt_key_id
 
+        # Check if we have a cached JWKS key ID.
+        if _jwks_kid_cache != "":
+            return _jwks_kid_cache
+
         # Fetch from Heimdall JWKS endpoint.
+        jwks_url = (
+            "http://lfx-platform-heimdall.lfx.svc.cluster.local:4457/.well-known/jwks"
+        )
         try:
-            response = requests.get(
-                "http://lfx-platform-heimdall.lfx.svc.cluster.local:4457/.well-known/jwks",
-                timeout=10,
-            )
+            response = requests.get(jwks_url, timeout=10)
             response.raise_for_status()
             jwks_data = response.json()
 
@@ -350,6 +376,8 @@ class JWTGenerator(yaml.YAMLObject):
             if not key_id:
                 raise ValueError("No key ID found in first JWKS key")
 
+            # Cache the fetched key ID.
+            _jwks_kid_cache = key_id
             return key_id
         except Exception as e:
             raise ValueError(
