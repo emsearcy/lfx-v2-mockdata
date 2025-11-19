@@ -423,7 +423,20 @@ buf_board_past_meeting_{{ past_meeting_index }}_recording_access_update:
     # Add past meeting recording relationships in OpenFGA (via fga-sync).
     subject: lfx.update_access.v1_past_meeting_recording
   steps:
-    - json: !ref buf_board_past_meeting_{{ past_meeting_index }}_recording_create.steps[0].json.data
+    - json:
+        # Only include the fields needed for access control
+        id: !ref buf_board_past_meeting_{{ past_meeting_index }}_recording_create.steps[0].json.data.meeting_and_occurrence_id
+        meeting_and_occurrence_id: !ref buf_board_past_meeting_{{ past_meeting_index }}_recording_create.steps[0].json.data.meeting_and_occurrence_id
+        recording_access: public
+        participants:
+          {% for i in range(board_member_count) %}
+          {% if member_has_username[i] %}
+          - lf_sso: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.data.username"
+            host: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.data.host"
+            is_invited: true
+            is_attended: !ref "buf_board_past_meeting_{{ past_meeting_index }}_participants_create.steps[{{ i }}].json.data.is_attended"
+          {% endif %}
+          {% endfor %}
 
 buf_board_past_meeting_{{ past_meeting_index }}_transcript_create:
   type: nats-publish
@@ -497,7 +510,20 @@ buf_board_past_meeting_{{ past_meeting_index }}_transcript_access_update:
     # Add past meeting transcript relationships in OpenFGA (via fga-sync).
     subject: lfx.update_access.v1_past_meeting_transcript
   steps:
-    - json: !ref buf_board_past_meeting_{{ past_meeting_index }}_transcript_create.steps[0].json.data
+    - json:
+        # Only include the fields needed for access control
+        id: !ref buf_board_past_meeting_{{ past_meeting_index }}_transcript_create.steps[0].json.data.meeting_and_occurrence_id
+        meeting_and_occurrence_id: !ref buf_board_past_meeting_{{ past_meeting_index }}_transcript_create.steps[0].json.data.meeting_and_occurrence_id
+        transcript_access: public
+        participants:
+          {% for i in range(board_member_count) %}
+          {% if member_has_username[i] %}
+          - lf_sso: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.data.username"
+            host: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.data.host"
+            is_invited: true
+            is_attended: !ref "buf_board_past_meeting_{{ past_meeting_index }}_participants_create.steps[{{ i }}].json.data.is_attended"
+          {% endif %}
+          {% endfor %}
 
 {% set summary_create_time = fake.date_time_between(
   start_date=occurrence_actual_end,
@@ -564,7 +590,20 @@ buf_board_past_meetings_{{ past_meeting_index }}_summary_access_update:
     # The past meeting AI summary (to fga-sync).
     subject: lfx.update_access.v1_past_meeting_summary
   steps:
-    - json: !ref buf_board_past_meeting_{{ past_meeting_index }}_summary_create.steps[0].json.data
+    - json:
+        # Only include the fields needed for access control
+        id: !ref buf_board_past_meeting_{{ past_meeting_index }}_summary_create.steps[0].json.data.id
+        meeting_and_occurrence_id: !ref buf_board_past_meeting_{{ past_meeting_index }}_summary_create.steps[0].json.data.meeting_and_occurrence_id
+        summary_access: public
+        participants:
+          {% for i in range(board_member_count) %}
+          {% if member_has_username[i] %}
+          - lf_sso: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.data.username"
+            host: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.data.host"
+            is_invited: true
+            is_attended: !ref "buf_board_past_meeting_{{ past_meeting_index }}_participants_create.steps[{{ i }}].json.data.is_attended"
+          {% endif %}
+          {% endfor %}
 
 #
 # Add participants for past meeting occurrence #{{ past_meeting_index }}.
