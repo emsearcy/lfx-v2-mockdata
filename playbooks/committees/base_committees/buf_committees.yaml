@@ -14,7 +14,7 @@ buf_committees:
     url: {{ environ.COMMITTEES_URL | default("http://lfx-v2-committee-service.lfx.svc.cluster.local:8080/committees") }}
     method: POST
     headers:
-      Authorization: Bearer {{ environ.COMMITTEES_TOKEN | default("-") }}
+      Authorization: !jwt bearer=true,aud=lfx-v2-committee-service,principal=clients@m2m_helper
   steps:
     - json:
         name: Governing Board
@@ -60,9 +60,9 @@ buf_board_members:
     url: !sub "{{ environ.COMMITTEES_URL | default('http://lfx-v2-committee-service.lfx.svc.cluster.local:8080/committees') }}/${ buf_committees.steps[?json.name == 'Governing Board']._response.uid | [0] }/members?v=1"
     method: POST
     headers:
-      Authorization: Bearer {{ environ.COMMITTEES_TOKEN | default("-") }}
+      Authorization: !jwt bearer=true,aud=lfx-v2-committee-service,principal=clients@m2m_helper
   steps:
-    {% for i in range(1) %}
+    {% for i in range(8) %}
     - json:
         appointed_by: Membership Entitlement
         email: {{ fake.ascii_company_email() }}
@@ -71,17 +71,19 @@ buf_board_members:
         organization:
           name: {{ fake.company() }}
           website: {{ fake.url() }}
-        {% if i == 0 %}
         role:
+          {% if i == 0 %}
           name: Chair
-        {% endif %}
+          {% else %}
+          name: None
+          {% endif %}
         status: Active
         voting:
           {% set start_date = fake.date_this_year() %}
           # 365 days later
           {% set end_date = start_date + timedelta(days=365) %}
-          start_date: "{{ start_date.isoformat().replace('+00:00', 'Z') }}"
-          end_date: "{{ end_date.isoformat().replace('+00:00', 'Z') }}"
+          start_date: "{{ start_date.isoformat() }}"
+          end_date: "{{ end_date.isoformat() }}"
           status: {{ [
             "Alternate Voting Rep",
             "Voting Rep",

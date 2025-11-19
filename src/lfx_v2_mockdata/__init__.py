@@ -30,21 +30,23 @@ import json
 import os
 import re
 import sys
-import uuid
+import time
+from base64 import b64encode
 from collections import OrderedDict
 from http import HTTPMethod
 from typing import Any
 
 import jmespath
-import lorem
+import jwt
 import nats
 import requests
 import structlog
 import yaml
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 from dotenv import load_dotenv
 from faker import Faker
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-from names_generator import generate_name
 from nats.aio.client import Client as NatsClient
 from nats.errors import TimeoutError
 from nats.js import JetStreamContext
@@ -70,6 +72,8 @@ class UploadMockDataArgs(BaseModel):
     dry_run: bool = False
     upload: bool = False
     force: bool = False
+    jwt_rsa_secret: str | None = None
+    jwt_key_id: str | None = None
 
 
 jmespath_context: contextvars.ContextVar[dict[str, Any]] = contextvars.ContextVar(
@@ -84,6 +88,11 @@ retries_remaining: contextvars.ContextVar[int] = contextvars.ContextVar(
 # NATS connection variables.
 nats_client: None | NatsClient = None
 jetstream_client: None | JetStreamContext = None
+
+# JWT caching variables.
+_jwt_cache: dict[str, tuple[str, float]] = {}  # Cache JWT tokens with expiry.
+_jwks_kid_cache: str = ""  # Cache JWKS key ID.
+JWT_CACHE_TTL = 240  # Cache JWT tokens for 4 minutes (1 minute before expiry).
 
 # NATS configuration.
 NATS_URL = os.getenv("NATS_URL", "nats://nats:4222")
@@ -222,11 +231,165 @@ class JMESPathSubstitution(yaml.YAMLObject):
         return result
 
 
+class JWTGenerator(yaml.YAMLObject):
+    """JWTGenerator represents a parsed !jwt YAML tag.
+
+    The !jwt tag generates a JWT token with the specified claims.
+    Arguments are passed as key=value pairs separated by commas.
+
+    Example:
+        !jwt aud=lfx-v2-project-service,principal=clients@m2m_helper,\\
+             email=test@example.com
+    """
+
+    def __init__(self, args_string):
+        self.args_string = args_string
+        self.parsed_args = self._parse_args(args_string)
+
+    def __repr__(self):
+        return f"JWTGenerator({repr(self.args_string)})"
+
+    def __str__(self):
+        return str(self.generate_jwt())
+
+    def _parse_args(self, args_string: str) -> dict[str, str]:
+        """Parse key=value,key=value arguments into a dictionary."""
+        args_dict: dict[str, str] = {}
+        if not args_string:
+            return args_dict
+
+        # Split by comma and parse key=value pairs.
+        for pair in args_string.split(","):
+            pair = pair.strip()
+            if "=" not in pair:
+                continue
+            key, value = pair.split("=", 1)
+            args_dict[key.strip()] = value.strip()
+        return args_dict
+
+    def generate_jwt(self) -> str:
+        """Generate a JWT token based on the provided arguments."""
+        cli_args = args.get()
+
+        # Check if we have the RSA secret.
+        if not cli_args.jwt_rsa_secret:
+            raise ValueError("JWT RSA secret not provided via --jwt-rsa-secret")
+
+        # Required arguments.
+        audience = self.parsed_args.get("aud")
+        principal = self.parsed_args.get("principal")
+
+        if not audience:
+            raise ValueError("JWT 'aud' (audience) argument is required")
+        if not principal:
+            raise ValueError("JWT 'principal' argument is required")
+
+        # Optional email.
+        email = self.parsed_args.get("email")
+
+        # Create cache key based on the JWT arguments.
+        bearer = self.parsed_args.get("bearer")
+        cache_key = f"{audience}|{principal}|{email or ''}|{bearer or ''}"
+
+        # Check if we have a cached JWT that's still valid.
+        now = time.time()
+        if cache_key in _jwt_cache:
+            cached_token, cache_time = _jwt_cache[cache_key]
+            if now - cache_time < JWT_CACHE_TTL:
+                return cached_token
+
+        # Get or fetch the key ID.
+        key_id = self._get_key_id(cli_args)
+
+        # Create JWT payload.
+        now_int = int(now)
+        payload = {
+            "aud": audience,
+            "iss": "heimdall",
+            "sub": principal.replace("clients@", ""),  # Remove clients@ prefix.
+            "principal": principal,
+            "exp": now_int + 300,  # 5 minutes expiry.
+            "nbf": now_int,  # Valid from now.
+            "jti": fake.uuid4(),  # Unique JWT ID.
+        }
+
+        # Add email to payload if provided.
+        if email:
+            payload["email"] = email
+
+        # Load the RSA private key.
+        try:
+            loaded_key = serialization.load_pem_private_key(
+                cli_args.jwt_rsa_secret.encode(), password=None
+            )
+            # Ensure we have an RSA private key for PS256 algorithm.
+            if not isinstance(loaded_key, rsa.RSAPrivateKey):
+                raise ValueError(
+                    "JWT signing requires an RSA private key for PS256 algorithm"
+                )
+            private_key = loaded_key
+        except Exception as e:
+            raise ValueError(f"Failed to load RSA private key: {e}") from e
+
+        # Generate the JWT.
+        token = jwt.encode(
+            payload,
+            private_key,
+            algorithm="PS256",
+            headers={"kid": key_id},
+        )
+
+        if bearer and bearer.lower() in ("true", "t", "1", "yes", "y"):
+            token = f"Bearer {token}"
+
+        # Cache the generated token.
+        _jwt_cache[cache_key] = (token, now)
+
+        return token
+
+    def _get_key_id(self, cli_args) -> str:
+        """Get the JWT key ID from command line argument or JWKS endpoint."""
+        global _jwks_kid_cache
+
+        # Use command line argument if provided.
+        if cli_args.jwt_key_id:
+            return cli_args.jwt_key_id
+
+        # Check if we have a cached JWKS key ID.
+        if _jwks_kid_cache != "":
+            return _jwks_kid_cache
+
+        # Fetch from Heimdall JWKS endpoint.
+        jwks_url = (
+            "http://lfx-platform-heimdall.lfx.svc.cluster.local:4457/.well-known/jwks"
+        )
+        try:
+            response = requests.get(jwks_url, timeout=10)
+            response.raise_for_status()
+            jwks_data = response.json()
+
+            if "keys" not in jwks_data or not jwks_data["keys"]:
+                raise ValueError("No keys found in JWKS response")
+
+            key_id = jwks_data["keys"][0].get("kid")
+            if not key_id:
+                raise ValueError("No key ID found in first JWKS key")
+
+            # Cache the fetched key ID.
+            _jwks_kid_cache = key_id
+            return key_id
+        except Exception as e:
+            raise ValueError(
+                f"Failed to fetch key ID from JWKS endpoint: {e}. "
+                "Consider using --jwt-key-id argument."
+            ) from e
+
+
 class JMESPathEncoder(json.JSONEncoder):
     """Extend the default JSON encoder for JMESPath macros.
 
-    Supports both the JMESPath (!ref) and JMESPathSubstitution (!sub)
-    macros.
+    Supports JMESPath (!ref), JMESPathSubstitution (!sub), and JWTGenerator
+    (!jwt) macros.
     """
 
     def default(self, obj):
@@ -234,6 +397,8 @@ class JMESPathEncoder(json.JSONEncoder):
             return obj.evaluate()
         if isinstance(obj, JMESPathSubstitution):
             return obj.evaluate()
+        if isinstance(obj, JWTGenerator):
+            return obj.generate_jwt()
         # Handle all other types (or raise a TypeError).
         return super().default(obj)
 
@@ -315,6 +480,22 @@ def yaml_include(loader, node):
     return yaml.safe_load(out_data)
 
 
+def yaml_jwt(loader, node):
+    """Convert !jwt YAML tag to JWTGenerator object.
+
+    This function is registered with the YAML loader via add_constructor().
+    """
+    return JWTGenerator(node.value)
+
+
+def jwt_yaml(dumper, data):
+    """Represent JWTGenerator object as a !jwt YAML tag.
+
+    This function is registered with the YAML dumper via add_representer().
+    """
+    return dumper.represent_scalar("!jwt", data.args_string)
+
+
 def yaml_render(template_dir, yaml_file):
     """Setup Jinja2 and render and parse a YAML file."""
     logger.info("Loading template", template_dir=template_dir, yaml_file=yaml_file)
@@ -331,17 +512,15 @@ def yaml_render(template_dir, yaml_file):
             ),
         )
         # Add helper functions to the Jinja2 environment.
+        env.globals["b64encode"] = lambda s: b64encode(s).decode()
         env.globals["environ"] = dict(os.environ)
         env.globals["fake"] = fake
-        env.globals["generate_name"] = generate_name
-        env.globals["lorem"] = lorem
         env.globals["timedelta"] = datetime.timedelta
         env.globals["now_z"] = (
             lambda: datetime.datetime.now(datetime.UTC)
             .isoformat("T")
             .replace("+00:00", "Z")
         )
-        env.globals["uuid"] = lambda: str(uuid.uuid4())
         # Store the environment in the context for use by the !include
         # constructor/macro and remaining YAML files in this context/directory.
         jinja_env.set(env)
@@ -972,6 +1151,19 @@ def parse_args() -> UploadMockDataArgs:
         action="store_true",
         help="keep running steps after a failure",
     )
+    parser.add_argument(
+        "--jwt-rsa-secret",
+        dest="jwt_rsa_secret",
+        help="RSA private key in PEM format for JWT signing",
+    )
+    parser.add_argument(
+        "--jwt-key-id",
+        dest="jwt_key_id",
+        help=(
+            "JWT key ID (kid) for JWT header. If not provided, will "
+            "fetch from Heimdall JWKS endpoint"
+        ),
+    )
     # Parse arguments and convert to Pydantic model.
     parsed_args = parser.parse_args()
     return UploadMockDataArgs(
@@ -981,14 +1173,18 @@ def parse_args() -> UploadMockDataArgs:
         dry_run=parsed_args.dry_run,
         upload=parsed_args.upload,
         force=parsed_args.force,
+        jwt_rsa_secret=parsed_args.jwt_rsa_secret,
+        jwt_key_id=parsed_args.jwt_key_id,
     )
 
 
 yaml.SafeLoader.add_constructor("!include", yaml_include)
 yaml.SafeLoader.add_constructor("!ref", yaml_ref)
 yaml.SafeLoader.add_constructor("!sub", yaml_sub)
+yaml.SafeLoader.add_constructor("!jwt", yaml_jwt)
 yaml.add_representer(JMESPath, ref_yaml)
 yaml.add_representer(JMESPathSubstitution, sub_yaml)
+yaml.add_representer(JWTGenerator, jwt_yaml)
 
 jmespath_context.set({})
 args.set(UploadMockDataArgs(template_dirs=[]))

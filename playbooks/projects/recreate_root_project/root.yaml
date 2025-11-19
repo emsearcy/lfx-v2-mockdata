@@ -12,7 +12,7 @@ recreate_root_project_slug:
     key: slug/ROOT
   steps:
     - raw: &root_project_uid
-        "{{ environ.PROJECTS_ROOT_UID | default(uuid()) }}"
+        "{{ environ.PROJECTS_ROOT_UID | default(fake.uuid4()) }}"
 
 recreate_root_project:
   type: nats-kv-put

@@ -39,15 +39,14 @@ export OPENFGA_STORE_ID="your-store-id-here"
 
 #### Authentication Tokens
 
-Generate impersonated Heimdall JWTs for service calls using the provided helper script:
+A Heimdall JWT secret is needed to use the `!jwt` macro in playbooks. If you
+export it as an environmental variable, you can pass it to the mock data tool
+as a command line argument. No `export` step is needed as this is used only
+to populate arguments to the mock data tool shell invocation.
 
 ```bash
-PROJECTS_TOKEN="$(./scripts/mock-heimdall-jwt.sh lfx-v2-project-service "clients@m2m_helper")"
-COMMITTEES_TOKEN="$(./scripts/mock-heimdall-jwt.sh lfx-v2-committee-service "clients@m2m_helper")"
-export PROJECTS_TOKEN COMMITTEES_TOKEN
+JWT_RSA_SECRET="$(kubectl get secret/heimdall-signer-cert -n lfx -o json | jq -r '.data["signer.pem"]' | base64 --decode)"
 ```
-
-*Note: in the future we may replace this with a YAML `!jwt` macro, and pass in the just the signing key as an environment variable.*
 
 ## Usage
 
@@ -58,14 +57,16 @@ Use uv to run the mock data tool (uv will automatically manage Python versions a
 ```bash
 # Test the script (uv will create the virtual environment automatically).
 uv run lfx-v2-mockdata --help
+
 # Load some data!
-uv run lfx-v2-mockdata -t playbooks/projects/{root_project_access,base_projects,extra_projects} playbooks/committees/base_committees
+uv run lfx-v2-mockdata --jwt-rsa-secret "$JWT_RSA_SECRET" -t playbooks/projects/{root_project_access,base_projects,extra_projects} playbooks/committees/base_committees
 ```
 
 **Important Notes:**
 - **Order matters!** Playbook directories run in the order specified on the command line.
 - Within each directory, playbooks execute in alphabetical order.
 - Dependencies between playbooks should be considered when organizing execution order. Multiple passes are made to allow `!ref` calls to be resolved, but the right order will improve performance and help avoid max-retry errors.
+- The `!jwt` macro will attempt to detect the JWKS key ID from the endpoint at `http://lfx-platform-heimdall.lfx.svc.cluster.local:4457/.well-known/jwks`. If this URL is not accessible from the execution environment, you must pass an explicit JWT key ID using the `--jwt-key-id` argument.
 
 ### Wiping Existing Data
 
