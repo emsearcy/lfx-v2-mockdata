@@ -278,7 +278,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_create:
               uuid: "{{ session_uuid }}"
               start_time: "{{ occurrence_actual_start.isoformat() }}Z"
           recording_enabled: true
-          meeting_and_occurrence_id: {{ meeting_id }}-{{ occurrence_id }}"
+          meeting_and_occurrence_id: "{{ meeting_id }}-{{ occurrence_id }}"
           duration: "{{ meeting_duration }}"
           meeting_id: "{{ meeting_id }}"
           recording_access: public
@@ -292,7 +292,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_create:
           # Note, proj_id (sfid) in the source data will have been stripped by
           # lfx-v1-sync-helper. We'll still keep project_slug, though.
           project_uid: !ref "buf_board_meeting_project_lookup.steps[0]._response"
-          modified_at: {{ occurrence_modified.isoformat() }}Z"
+          modified_at: "{{ occurrence_modified.isoformat() }}Z"
           timezone: !ref buf_board_meeting_create.steps[0].json.data.timezone
           ai_summary_access: public
           # TODO ... what is this? (it didn't necesesarily match recurrence.type in my test data)

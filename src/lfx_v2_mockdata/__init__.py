@@ -238,7 +238,8 @@ class JWTGenerator(yaml.YAMLObject):
     Arguments are passed as key=value pairs separated by commas.
 
     Example:
-        !jwt aud=lfx-v2-project-service,principal=clients@m2m_helper,email=test@example.com
+        !jwt aud=lfx-v2-project-service,principal=clients@m2m_helper,\\
+             email=test@example.com
     """
 
     def __init__(self, args_string):
@@ -268,8 +269,6 @@ class JWTGenerator(yaml.YAMLObject):
 
     def generate_jwt(self) -> str:
         """Generate a JWT token based on the provided arguments."""
-        global _jwt_cache
-
         cli_args = args.get()
 
         # Check if we have the RSA secret.
