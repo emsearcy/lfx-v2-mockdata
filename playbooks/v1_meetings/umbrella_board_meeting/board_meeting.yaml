@@ -61,7 +61,8 @@ buf_board_meeting_create:
           {# Map Python weekday (0 = Monday, 6 = Sunday) to Zoom (1 = Sunday, 7 = Saturday). #}
           {% set zoom_week_day = (meeting_start_time.weekday() + 1) % 7 + 1 %}
           {% set week_of_month = (meeting_start_time.day / 7) | round(0, 'ceil') | int %}
-          id: "{{ meeting_id }}" # v2 attribute
+          # Renamed from `meeting_id` in v1.
+          id: "{{ meeting_id }}"
           topic: Monthly Board Meeting
           visibility: public
           agenda: "Monthly meeting for the Big Umbrella Foundation board. {{ fake.sentence() }}"
@@ -85,7 +86,6 @@ buf_board_meeting_create:
           early_join_time: "10"
           recording_enabled: true
           duration: "{{ meeting_duration }}"
-          meeting_id: "{{ meeting_id }}"
           recording_access: public
           concurrent_zoom_user_enabled: true
           # TODO.
@@ -162,8 +162,8 @@ buf_board_meeting_committee_participants_create:
           authorization: !jwt bearer=true,aud=lfx-v2-project-service,principal={{ fake.user_name() }},email={{ fake.email() }}
           x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=clients@m2m_helper
         data:
-          id: "{{ fake.uuid4() }}" # v2 attribute
-          registrant_id: "{{ fake.uuid4() }}" # v1 attribute
+          # Renamed from `registrant_id` in v1.
+          id: "{{ fake.uuid4() }}"
           meeting_id: "{{ meeting_id }}"
           committee: !ref "buf_committees.steps[?json.name == 'Governing Board']._response.uid | [0]"
           org: !ref "buf_board_members.steps[{{ i }}].json.organization.name"
@@ -256,7 +256,8 @@ buf_board_past_meeting_{{ past_meeting_index }}_create:
           authorization: !jwt bearer=true,aud=lfx-v2-project-service,principal={{ fake.user_name() }},email={{ fake.email() }}
           x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=clients@m2m_helper
         data:
-          id: "{{ meeting_id }}-{{ occurrence_id }}" # v2 attribute
+          # Renamed from `meeting_and_occurrence_id` in v1.
+          id: "{{ meeting_id }}-{{ occurrence_id }}"
           topic: Monthly Board Meeting
           artifacts: null
           visibility: public
@@ -281,7 +282,6 @@ buf_board_past_meeting_{{ past_meeting_index }}_create:
               uuid: "{{ session_uuid }}"
               start_time: "{{ occurrence_actual_start.isoformat() }}Z"
           recording_enabled: true
-          meeting_and_occurrence_id: "{{ meeting_id }}-{{ occurrence_id }}"
           duration: "{{ meeting_duration }}"
           meeting_id: "{{ meeting_id }}"
           recording_access: public
@@ -354,7 +354,8 @@ buf_board_past_meeting_{{ past_meeting_index }}_recording_create:
           authorization: !jwt bearer=true,aud=lfx-v2-project-service,principal={{ fake.user_name() }},email={{ fake.email() }}
           x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=clients@m2m_helper
         data:
-          id: "{{ meeting_id }}-{{ occurrence_id }}" # v2 attribute
+          # Renamed from `meeting_and_occurrence_id` in v1.
+          id: "{{ meeting_id }}-{{ occurrence_id }}"
           # This is a filtered version of the v1 recordings object.
           created_at: "{{ recording_create_time.isoformat() }}Z"
           total_size: "{{ total_recording_size }}"
@@ -417,7 +418,6 @@ buf_board_past_meeting_{{ past_meeting_index }}_recording_create:
               uuid: "{{ session_uuid }}"
               share_url: https://zoom.example/rec/share/{{ share_hash }}
           recording_count: "5"
-          meeting_and_occurrence_id: "{{ meeting_id }}-{{ occurrence_id }}"
           meeting_id: "{{ meeting_id }}"
           recording_access: public
 
@@ -454,7 +454,8 @@ buf_board_past_meeting_{{ past_meeting_index }}_transcript_create:
           authorization: !jwt bearer=true,aud=lfx-v2-project-service,principal={{ fake.user_name() }},email={{ fake.email() }}
           x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=clients@m2m_helper
         data:
-          id: "{{ meeting_id }}-{{ occurrence_id }}" # v2 attribute
+          # Renamed from `meeting_and_occurrence_id` in v1.
+          id: "{{ meeting_id }}-{{ occurrence_id }}"
           # This is a filtered version of the v1 recordings object.
           created_at: "{{ recording_create_time.isoformat() }}Z"
           total_size: "{{ total_recording_size }}"
@@ -504,7 +505,6 @@ buf_board_past_meeting_{{ past_meeting_index }}_transcript_create:
               uuid: "{{ session_uuid }}"
               share_url: https://zoom.example/rec/share/{{ share_hash }}
           recording_count: "5"
-          meeting_and_occurrence_id: "{{ meeting_id }}-{{ occurrence_id }}"
           meeting_id: "{{ meeting_id }}"
           # `recording_access` is filtered from the transcript object.
           # recording_access: public

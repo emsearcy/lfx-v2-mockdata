@@ -59,7 +59,9 @@ Use uv to run the mock data tool (uv will automatically manage Python versions a
 uv run lfx-v2-mockdata --help
 
 # Load some data!
-uv run lfx-v2-mockdata --jwt-rsa-secret "$JWT_RSA_SECRET" -t playbooks/projects/{root_project_access,base_projects,extra_projects} playbooks/committees/base_committees
+uv run lfx-v2-mockdata \
+    --jwt-rsa-secret "$JWT_RSA_SECRET" \
+    -t playbooks/projects/{root_project_access,base_projects,extra_projects} playbooks/committees/base_committees
 ```
 
 **Important Notes:**
@@ -83,13 +85,15 @@ done
 
 ### Running After Data Wipe
 
-When running after wiping data, you need to recreate the ROOT project first:
+When running after wiping data, you need to recreate the ROOT project first, with an extra playbook at the front. This `recreate_root_project` playbook bypasses the API and directly creates a new ROOT project in the NATS KV bucket.
 
 ```bash
-uv run lfx-v2-mockdata -t playbooks/projects/recreate_root_project playbooks/projects/{root_project_access,base_projects,extra_projects} playbooks/committees/base_committees
+uv run lfx-v2-mockdata \
+    --jwt-rsa-secret "$JWT_RSA_SECRET" \
+    -t playbooks/projects/{root_project_access,base_projects,extra_projects} playbooks/committees/base_committees
+    -t playbooks/projects/recreate_root_project playbooks/projects/{root_project_access,base_projects,extra_projects} playbooks/committees/base_committees
 ```
 
-The `recreate_root_project` playbook bypasses the API and directly creates a new ROOT project in the NATS KV bucket.
 
 ## Playbook Structure
 
