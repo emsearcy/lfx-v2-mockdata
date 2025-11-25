@@ -61,6 +61,7 @@ buf_board_meeting_create:
           {# Map Python weekday (0 = Monday, 6 = Sunday) to Zoom (1 = Sunday, 7 = Saturday). #}
           {% set zoom_week_day = (meeting_start_time.weekday() + 1) % 7 + 1 %}
           {% set week_of_month = (meeting_start_time.day / 7) | round(0, 'ceil') | int %}
+          id: "{{ meeting_id }}" # v2 attribute
           topic: Monthly Board Meeting
           visibility: public
           agenda: "Monthly meeting for the Big Umbrella Foundation board. {{ fake.sentence() }}"
@@ -161,7 +162,8 @@ buf_board_meeting_committee_participants_create:
           authorization: !jwt bearer=true,aud=lfx-v2-project-service,principal={{ fake.user_name() }},email={{ fake.email() }}
           x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=clients@m2m_helper
         data:
-          registrant_id: "{{ fake.uuid4() }}"
+          id: "{{ fake.uuid4() }}" # v2 attribute
+          registrant_id: "{{ fake.uuid4() }}" # v1 attribute
           meeting_id: "{{ meeting_id }}"
           committee: !ref "buf_committees.steps[?json.name == 'Governing Board']._response.uid | [0]"
           org: !ref "buf_board_members.steps[{{ i }}].json.organization.name"
@@ -254,6 +256,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_create:
           authorization: !jwt bearer=true,aud=lfx-v2-project-service,principal={{ fake.user_name() }},email={{ fake.email() }}
           x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=clients@m2m_helper
         data:
+          id: "{{ meeting_id }}-{{ occurrence_id }}" # v2 attribute
           topic: Monthly Board Meeting
           artifacts: null
           visibility: public
@@ -351,6 +354,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_recording_create:
           authorization: !jwt bearer=true,aud=lfx-v2-project-service,principal={{ fake.user_name() }},email={{ fake.email() }}
           x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=clients@m2m_helper
         data:
+          id: "{{ meeting_id }}-{{ occurrence_id }}" # v2 attribute
           # This is a filtered version of the v1 recordings object.
           created_at: "{{ recording_create_time.isoformat() }}Z"
           total_size: "{{ total_recording_size }}"
@@ -450,6 +454,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_transcript_create:
           authorization: !jwt bearer=true,aud=lfx-v2-project-service,principal={{ fake.user_name() }},email={{ fake.email() }}
           x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=clients@m2m_helper
         data:
+          id: "{{ meeting_id }}-{{ occurrence_id }}" # v2 attribute
           # This is a filtered version of the v1 recordings object.
           created_at: "{{ recording_create_time.isoformat() }}Z"
           total_size: "{{ total_recording_size }}"
@@ -534,7 +539,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_summary_create:
   type: nats-publish
   params:
     # Create the registered participant in OpenSearch (via indexer).
-    subject: lfx.index.v1_meeting_summary
+    subject: lfx.index.v1_past_meeting_summary
   steps:
     - json:
         action: created
