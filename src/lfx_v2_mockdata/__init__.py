@@ -102,6 +102,31 @@ setup_logging()
 logger = structlog.get_logger()
 
 
+def slug_from_project_name(project_name: str) -> str:
+    """Generate a sanitized slug from a project name.
+
+    The slug is based on the project name lowercased, with non-alphanumeric
+    characters replaced with hyphens, consecutive hyphens replaced with a
+    single hyphen, and leading and trailing hyphens stripped.
+    """
+    if not project_name:
+        return ""
+
+    # Convert to lowercase.
+    slug = project_name.lower()
+
+    # Replace non-alphanumeric characters with hyphens.
+    slug = re.sub(r"[^a-z0-9]+", "-", slug)
+
+    # Replace consecutive hyphens with a single hyphen.
+    slug = re.sub(r"-+", "-", slug)
+
+    # Strip leading and trailing hyphens.
+    slug = slug.strip("-")
+
+    return slug
+
+
 class JMESPath(yaml.YAMLObject):
     """JMESPath represents a parsed !ref YAML tag.
 
@@ -521,6 +546,7 @@ def yaml_render(template_dir, yaml_file):
             .isoformat("T")
             .replace("+00:00", "Z")
         )
+        env.globals["slug_from_project_name"] = slug_from_project_name
         # Store the environment in the context for use by the !include
         # constructor/macro and remaining YAML files in this context/directory.
         jinja_env.set(env)
