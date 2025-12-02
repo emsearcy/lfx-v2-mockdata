@@ -28,7 +28,7 @@ sample_umbrella_buf:
     {% for buf_child in range(25) %}
     {% set buf_child_name = fake.catch_phrase().title() %}
     - json:
-        slug: {{ buf_child_name | lower | replace(" ", "-") }}
+        slug: {{ slug_from_project_name(buf_child_name) }}
         name: {{ buf_child_name }} Project
         description: >-
           {{ buf_child_name }}
@@ -39,8 +39,8 @@ sample_umbrella_buf:
         parent_uid: !ref "sample_umbrella_buf.steps[0]._response.uid"
         legal_entity_name: {{ buf_child_name }} Project
         legal_entity_type: Subproject
-        repository_url: https://example.com/{{ buf_child_name | lower | replace(" ", "-") }}
-        website_url: https://{{ buf_child_name | lower | replace(" ", "-") }}.example/
+        repository_url: https://example.com/{{ slug_from_project_name(buf_child_name) }}
+        website_url: https://{{ slug_from_project_name(buf_child_name) }}.example/
     {% endfor %}
 
 sample_umbrella_iubp:
@@ -71,7 +71,7 @@ sample_umbrella_iubp:
     {% for iubp_child in range(15) %}
     {% set iubp_child_name = fake.catch_phrase().title() %}
     - json:
-        slug: {{ iubp_child_name | lower | replace(" ", "-") }}
+        slug: {{ slug_from_project_name(iubp_child_name) }}
         name: {{ iubp_child_name }} Project
         description: >-
           {{ iubp_child_name }}
@@ -85,6 +85,6 @@ sample_umbrella_iubp:
         # Children's parent is the umbrella; legal parent is LF Projects, LLC.
         parent_uid: !ref "sample_umbrella_iubp.steps[0]._response.uid"
         legal_parent_uid: !ref "base_projects.steps[?json.slug == 'lfprojects']._response.uid | [0]"
-        repository_url: https://example.com/{{ iubp_child_name | lower | replace(" ", "-") }}
-        website_url: https://{{ iubp_child_name | lower | replace(" ", "-") }}.example/
+        repository_url: https://example.com/{{ slug_from_project_name(iubp_child_name) }}
+        website_url: https://{{ slug_from_project_name(iubp_child_name) }}.example/
     {% endfor %}
