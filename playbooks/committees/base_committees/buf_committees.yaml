@@ -48,7 +48,7 @@ buf_committees:
         name: Technical Oversight Committee
         description: >-
           The Technical Oversight Committee for the Big Umbrella Foundation (BUF).
-        category: Technical Oversight Committee/Technical Advisory Committee
+        category: Technical Oversight Committee
         public: true
         enable_voting: true
         business_email_required: true

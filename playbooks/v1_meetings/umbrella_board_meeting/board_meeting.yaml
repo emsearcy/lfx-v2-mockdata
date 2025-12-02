@@ -429,8 +429,8 @@ buf_board_past_meeting_{{ past_meeting_index }}_recording_access_update:
   steps:
     - json:
         # Only include the fields needed for access control
-        id: !ref buf_board_past_meeting_{{ past_meeting_index }}_recording_create.steps[0].json.data.meeting_and_occurrence_id
-        meeting_and_occurrence_id: !ref buf_board_past_meeting_{{ past_meeting_index }}_recording_create.steps[0].json.data.meeting_and_occurrence_id
+        id: !ref buf_board_past_meeting_{{ past_meeting_index }}_recording_create.steps[0].json.data.id
+        meeting_and_occurrence_id: !ref buf_board_past_meeting_{{ past_meeting_index }}_recording_create.steps[0].json.data.id
         recording_access: public
         participants:
           {% for i in range(board_member_count) %}
@@ -517,8 +517,8 @@ buf_board_past_meeting_{{ past_meeting_index }}_transcript_access_update:
   steps:
     - json:
         # Only include the fields needed for access control
-        id: !ref buf_board_past_meeting_{{ past_meeting_index }}_transcript_create.steps[0].json.data.meeting_and_occurrence_id
-        meeting_and_occurrence_id: !ref buf_board_past_meeting_{{ past_meeting_index }}_transcript_create.steps[0].json.data.meeting_and_occurrence_id
+        id: !ref buf_board_past_meeting_{{ past_meeting_index }}_transcript_create.steps[0].json.data.id
+        meeting_and_occurrence_id: !ref buf_board_past_meeting_{{ past_meeting_index }}_transcript_create.steps[0].json.data.id
         transcript_access: public
         participants:
           {% for i in range(board_member_count) %}
@@ -647,7 +647,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_participants_create:
           org: !ref "buf_board_members.steps[{{ i }}].json.organization.name"
           committee_role: !ref "buf_board_members.steps[{{ i }}].json.role.name"
           org_is_project_member: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.data.org_is_project_member"
-          registrant_id: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.data.registrant_id"
+          registrant_id: !ref "buf_board_meeting_committee_participants_create.steps[{{ i }}].json.data.id"
           invitee_id: {{ fake.uuid4() }}
           email: !ref "buf_board_members.steps[{{ i }}].json.email"
           first_name: !ref "buf_board_members.steps[{{ i }}].json.first_name"
