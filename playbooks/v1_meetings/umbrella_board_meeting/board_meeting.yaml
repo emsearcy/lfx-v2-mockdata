@@ -79,6 +79,7 @@ buf_board_meeting_create:
             type: "3"
             monthly_week: "{{ week_of_month }}"
             monthly_week_day: "{{ zoom_week_day }}"
+          series_end_date: "{{ (meeting_start_time + timedelta(days=365*100, minutes=meeting_duration)).isoformat() }}Z"
           zoom_ai_enabled: true
           # 6-digit numeric passcode.
           host_key: "{{ fake.pyint(min_value=100000, max_value=999999) }}"
