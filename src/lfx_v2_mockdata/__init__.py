@@ -331,7 +331,7 @@ class JWTGenerator(yaml.YAMLObject):
         payload = {
             "aud": audience,
             "iss": "heimdall",
-            "sub": principal.replace("@clients", ""),  # Remove @clients suffix.
+            "sub": principal.removesuffix("@clients"),  # Remove @clients suffix.
             "principal": principal,
             "exp": now_int + 300,  # 5 minutes expiry.
             "nbf": now_int,  # Valid from now.
