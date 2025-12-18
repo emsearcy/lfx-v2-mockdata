@@ -10,7 +10,7 @@ extra_incorporated:
     url: {{ environ.PROJECTS_URL | default("http://lfx-v2-project-service.lfx.svc.cluster.local:8080/projects") }}
     method: POST
     headers:
-      Authorization: !jwt bearer=true,aud=lfx-v2-project-service,principal=clients@m2m_helper
+      Authorization: !jwt bearer=true,aud=lfx-v2-project-service,principal=m2m_helper@clients
   steps:
     {% for outer in range(12) %}
     {% set project_name = fake.catch_phrase().title() %}

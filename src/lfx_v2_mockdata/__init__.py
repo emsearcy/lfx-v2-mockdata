@@ -81,9 +81,7 @@ jmespath_context: contextvars.ContextVar[dict[str, Any]] = contextvars.ContextVa
 )
 jinja_env: contextvars.ContextVar[Environment] = contextvars.ContextVar("jinja_env")
 args: contextvars.ContextVar[UploadMockDataArgs] = contextvars.ContextVar("args")
-retries_remaining: contextvars.ContextVar[int] = contextvars.ContextVar(
-    "retries_remaining"
-)
+retries_remaining: contextvars.ContextVar[int] = contextvars.ContextVar("retries_remaining")
 
 # NATS connection variables.
 nats_client: None | NatsClient = None
@@ -180,9 +178,7 @@ class JMESPath(yaml.YAMLObject):
         # Attempt to evaluate expression against data context.
         value = jmespath.search(self.expression, data_context)
         if value is None:
-            raise AttributeError(
-                f"JMESPath expression '{self.expression}' not found in data"
-            )
+            raise AttributeError(f"JMESPath expression '{self.expression}' not found in data")
         return value
 
 
@@ -246,9 +242,7 @@ class JMESPathSubstitution(yaml.YAMLObject):
             # Attempt to evaluate expression against data context.
             value = jmespath.search(expression, data_context)
             if value is None:
-                raise AttributeError(
-                    f"JMESPath expression '{expression}' not found in data"
-                )
+                raise AttributeError(f"JMESPath expression '{expression}' not found in data")
             return str(value)
 
         # Find and replace all ${...} patterns with their evaluated values.
@@ -263,7 +257,7 @@ class JWTGenerator(yaml.YAMLObject):
     Arguments are passed as key=value pairs separated by commas.
 
     Example:
-        !jwt aud=lfx-v2-project-service,principal=clients@m2m_helper,\\
+        !jwt aud=lfx-v2-project-service,principal=m2m_helper@clients,\
              email=test@example.com
     """
 
@@ -331,7 +325,7 @@ class JWTGenerator(yaml.YAMLObject):
         payload = {
             "aud": audience,
             "iss": "heimdall",
-            "sub": principal.replace("clients@", ""),  # Remove clients@ prefix.
+            "sub": principal.replace("@clients", ""),  # Remove @clients suffix.
             "principal": principal,
             "exp": now_int + 300,  # 5 minutes expiry.
             "nbf": now_int,  # Valid from now.
@@ -349,9 +343,7 @@ class JWTGenerator(yaml.YAMLObject):
             )
             # Ensure we have an RSA private key for PS256 algorithm.
             if not isinstance(loaded_key, rsa.RSAPrivateKey):
-                raise ValueError(
-                    "JWT signing requires an RSA private key for PS256 algorithm"
-                )
+                raise ValueError("JWT signing requires an RSA private key for PS256 algorithm")
             private_key = loaded_key
         except Exception as e:
             raise ValueError(f"Failed to load RSA private key: {e}") from e
@@ -385,9 +377,7 @@ class JWTGenerator(yaml.YAMLObject):
             return _jwks_kid_cache
 
         # Fetch from Heimdall JWKS endpoint.
-        jwks_url = (
-            "http://lfx-platform-heimdall.lfx.svc.cluster.local:4457/.well-known/jwks"
-        )
+        jwks_url = "http://lfx-platform-heimdall.lfx.svc.cluster.local:4457/.well-known/jwks"
         try:
             response = requests.get(jwks_url, timeout=10)
             response.raise_for_status()
@@ -542,9 +532,7 @@ def yaml_render(template_dir, yaml_file):
         env.globals["fake"] = fake
         env.globals["timedelta"] = datetime.timedelta
         env.globals["now_z"] = (
-            lambda: datetime.datetime.now(datetime.UTC)
-            .isoformat("T")
-            .replace("+00:00", "Z")
+            lambda: datetime.datetime.now(datetime.UTC).isoformat("T").replace("+00:00", "Z")
         )
         env.globals["slug_from_project_name"] = slug_from_project_name
         # Store the environment in the context for use by the !include
@@ -755,9 +743,7 @@ def run_http_request_playbook(name: str, playbook: dict) -> None:
             except AttributeError as e:
                 if cli_args.dry_run:
                     if cli_args.force:
-                        logger.error(
-                            "Error processing playbook", error=str(e), playbook=name
-                        )
+                        logger.error("Error processing playbook", error=str(e), playbook=name)
                         step_payload["_response"] = {}
                         continue
                     else:
@@ -766,9 +752,7 @@ def run_http_request_playbook(name: str, playbook: dict) -> None:
                     if retries_remaining.get() > 0:
                         continue
                     if cli_args.force:
-                        logger.error(
-                            "Error processing playbook", error=str(e), playbook=name
-                        )
+                        logger.error("Error processing playbook", error=str(e), playbook=name)
                         continue
                     raise
             if request_data is None and "raw" in step_payload:
@@ -808,9 +792,7 @@ def run_http_request_playbook(name: str, playbook: dict) -> None:
             step_payload["_response"] = r_dict
         except json.decoder.JSONDecodeError as e:
             if cli_args.force:
-                logger.error(
-                    "Failed to parse response as JSON", error=str(e), playbook=name
-                )
+                logger.error("Failed to parse response as JSON", error=str(e), playbook=name)
                 # Add a placeholder response to prevent re-running.
                 step_payload["_response"] = {}
                 continue
@@ -866,9 +848,7 @@ async def run_nats_publish_playbook(name: str, playbook: dict) -> None:
             except AttributeError as e:
                 if cli_args.dry_run:
                     if cli_args.force:
-                        logger.error(
-                            "Error processing playbook", error=str(e), playbook=name
-                        )
+                        logger.error("Error processing playbook", error=str(e), playbook=name)
                         step_payload["_response"] = {}
                         continue
                     else:
@@ -877,9 +857,7 @@ async def run_nats_publish_playbook(name: str, playbook: dict) -> None:
                     if retries_remaining.get() > 0:
                         continue
                     if cli_args.force:
-                        logger.error(
-                            "Error processing playbook", error=str(e), playbook=name
-                        )
+                        logger.error("Error processing playbook", error=str(e), playbook=name)
                         continue
                     raise
         elif "raw" in step_payload:
@@ -978,9 +956,7 @@ async def run_nats_kv_put_playbook(name: str, playbook: dict) -> None:
             except AttributeError as e:
                 if cli_args.dry_run:
                     if cli_args.force:
-                        logger.error(
-                            "Error processing playbook", error=str(e), playbook=name
-                        )
+                        logger.error("Error processing playbook", error=str(e), playbook=name)
                         step_payload["_response"] = {}
                         continue
                     else:
@@ -989,9 +965,7 @@ async def run_nats_kv_put_playbook(name: str, playbook: dict) -> None:
                     if retries_remaining.get() > 0:
                         continue
                     if cli_args.force:
-                        logger.error(
-                            "Error processing playbook", error=str(e), playbook=name
-                        )
+                        logger.error("Error processing playbook", error=str(e), playbook=name)
                         continue
                     raise
         elif "raw" in step_payload:
@@ -1076,9 +1050,7 @@ async def run_nats_request_playbook(name: str, playbook: dict) -> None:
             except AttributeError as e:
                 if cli_args.dry_run:
                     if cli_args.force:
-                        logger.error(
-                            "Error processing playbook", error=str(e), playbook=name
-                        )
+                        logger.error("Error processing playbook", error=str(e), playbook=name)
                         step_payload["_response"] = {}
                         continue
                     else:
@@ -1087,9 +1059,7 @@ async def run_nats_request_playbook(name: str, playbook: dict) -> None:
                     if retries_remaining.get() > 0:
                         continue
                     if cli_args.force:
-                        logger.error(
-                            "Error processing playbook", error=str(e), playbook=name
-                        )
+                        logger.error("Error processing playbook", error=str(e), playbook=name)
                         continue
                     raise
         elif "raw" in step_payload:
@@ -1115,9 +1085,7 @@ async def run_nats_request_playbook(name: str, playbook: dict) -> None:
         )
 
         try:
-            response = await nats_client.request(
-                params.subject, data, timeout=params.timeout
-            )
+            response = await nats_client.request(params.subject, data, timeout=params.timeout)
             # Parse the response data and store it.
             try:
                 response_data = json.loads(response.data.decode())

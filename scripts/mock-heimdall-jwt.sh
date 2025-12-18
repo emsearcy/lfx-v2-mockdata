@@ -40,7 +40,7 @@ jwt encode \
 	--jti "$(uuidgen)" \
 	--payload "aud=$aud" \
 	--payload "iss=heimdall" \
-	--payload "sub=${principal#clients@}" \
+	--payload "sub=${principal%@clients}" \
 	--payload "principal=$principal" \
 	--secret "@${pem_temp_dir}/signer.pem" \
 	"${payload}"

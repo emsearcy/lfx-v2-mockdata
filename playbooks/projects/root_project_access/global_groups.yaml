@@ -29,7 +29,7 @@ global_groups:
               object: "team:project_super_admins"
             # A M2M principal from lfx-v2-helm's values.yaml
             # (authelia.authelia_client_generation.clients).
-            - user: "user:clients@lfx_m2m"
+            - user: "user:lfx_m2m@clients"
               relation: member
               object: "team:project_super_admins"
             # Attach the global group with the above members to the ROOT

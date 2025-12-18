@@ -14,7 +14,7 @@ buf_committees:
     url: {{ environ.COMMITTEES_URL | default("http://lfx-v2-committee-service.lfx.svc.cluster.local:8080/committees") }}
     method: POST
     headers:
-      Authorization: !jwt bearer=true,aud=lfx-v2-committee-service,principal=clients@m2m_helper
+      Authorization: !jwt bearer=true,aud=lfx-v2-committee-service,principal=m2m_helper@clients
   steps:
     - json:
         name: Governing Board
@@ -60,7 +60,7 @@ buf_board_members:
     url: !sub "{{ environ.COMMITTEES_URL | default('http://lfx-v2-committee-service.lfx.svc.cluster.local:8080/committees') }}/${ buf_committees.steps[?json.name == 'Governing Board']._response.uid | [0] }/members?v=1"
     method: POST
     headers:
-      Authorization: !jwt bearer=true,aud=lfx-v2-committee-service,principal=clients@m2m_helper
+      Authorization: !jwt bearer=true,aud=lfx-v2-committee-service,principal=m2m_helper@clients
   steps:
     {% for i in range(8) %}
     - json:
