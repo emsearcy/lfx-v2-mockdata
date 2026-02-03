@@ -13,58 +13,81 @@ This tool generates mock data for the LFX v2 platform by running playbooks that 
 
 These instructions and playbooks assume the script's execution environment has access to `*.*.svc.cluster.local` Kubernetes service URLs. These URLs in the playbooks can be overridden with environmental variables as needed.
 
+## Quick Start
+
+```bash
+# Set up environment variables
+eval $(./scripts/setup-env.sh)
+
+# Load all standard mock data
+make load
+```
+
+Run `make help` to see all available commands.
+
 ## Setup
 
-### 1. Set Environment Variables
+### Automated Setup (Recommended)
 
-#### NATS Configuration
+Use the setup script to configure all environment variables:
 
 ```bash
+eval $(./scripts/setup-env.sh)
+```
+
+The script will automatically:
+
+- Set `NATS_URL` to the default Kubernetes service URL
+- Retrieve and set `OPENFGA_STORE_ID` from the OpenFGA API
+- Retrieve and set `JWT_RSA_SECRET` from the heimdall-signer-cert secret
+
+Verify your environment is configured:
+
+```bash
+make check-env
+```
+
+### Manual Setup (Alternative)
+
+If you prefer to set environment variables manually or need to customize values:
+
+```bash
+# NATS URL
 export NATS_URL="lfx-platform-nats.lfx.svc.cluster.local:4222"
-```
 
-#### OpenFGA Configuration
-
-First, confirm the OpenFGA Store ID:
-
-```bash
+# OpenFGA Store ID (get from API)
 curl -sSi "http://lfx-platform-openfga.lfx.svc.cluster.local:8080/stores"
-```
-
-Then export the Store ID:
-
-```bash
 export OPENFGA_STORE_ID="your-store-id-here"
-```
 
-#### Authentication Tokens
-
-A Heimdall JWT secret is needed to use the `!jwt` macro in playbooks. If you
-export it as an environmental variable, you can pass it to the mock data tool
-as a command line argument. No `export` step is needed as this is used only
-to populate arguments to the mock data tool shell invocation.
-
-```bash
-JWT_RSA_SECRET="$(kubectl get secret/heimdall-signer-cert -n lfx -o json | jq -r '.data["signer.pem"]' | base64 --decode)"
+# JWT RSA secret from Heimdall
+export JWT_RSA_SECRET="$(kubectl get secret/heimdall-signer-cert -n lfx -o json | jq -r '.data["signer.pem"]' | base64 --decode)"
 ```
 
 ## Usage
 
-### Running Mock Data Generation
+### Loading Mock Data
 
-Use uv to run the mock data tool (uv will automatically manage Python versions and virtual environments):
+Use the Makefile targets to load data:
 
 ```bash
-# Test the script (uv will create the virtual environment automatically).
-uv run lfx-v2-mockdata --help
+make load              # Load all standard playbooks
+make load-projects     # Load only project playbooks
+make load-committees   # Load only committee playbooks
+make load-mailing-lists # Load mailing list playbooks
+make load-meetings     # Load v1 meeting playbooks
+```
 
-# Load some data!
+Or run the tool directly for custom playbook combinations:
+
+```bash
+uv run lfx-v2-mockdata --help
 uv run lfx-v2-mockdata \
     --jwt-rsa-secret "$JWT_RSA_SECRET" \
-    -t playbooks/projects/{root_project_access,base_projects,extra_projects} playbooks/committees/base_committees
+    -t playbooks/projects/base_projects
 ```
 
 **Important Notes:**
+
 - **Order matters!** Playbook directories run in the order specified on the command line.
 - Within each directory, playbooks execute in alphabetical order.
 - Dependencies between playbooks should be considered when organizing execution order. Multiple passes are made to allow `!ref` calls to be resolved, but the right order will improve performance and help avoid max-retry errors.
@@ -72,7 +95,27 @@ uv run lfx-v2-mockdata \
 
 ### Wiping Existing Data
 
-If you need to start fresh, wipe the NATS KV buckets:
+To start fresh, use the reset command:
+
+```bash
+make reset
+```
+
+This will:
+
+- Clear all NATS KV buckets (projects, committees, meetings, etc.)
+- Clear and recreate OpenSearch indices (using current mapping)
+- Restart the query service to clear cache
+- Delete the project service pod to clear cache
+
+**Safety Features:**
+
+- Requires typing `RESET` to confirm before proceeding
+- Validates all critical operations and exits on failure
+- Preserves authentication data in `authelia-users` and `authelia-email-otp` buckets
+- Automatically retrieves and uses current OpenSearch mapping before recreation
+
+**Manual Alternative:** If you prefer to wipe only NATS KV buckets manually:
 
 ```bash
 for bucket in projects project-settings committees committee-settings committee-members; do
@@ -81,19 +124,19 @@ for bucket in projects project-settings committees committee-settings committee-
 done
 ```
 
-*Consider updating this documentation to also provide steps for recreating the OpenSearch index. Stale OpenFGA tuples may also be deleted, but unlike OpenSearch data, it won't impact the refreshed data to keep them.*
-
 ### Running After Data Wipe
 
-When running after wiping data, you need to recreate the ROOT project first, with an extra playbook at the front. This `recreate_root_project` playbook bypasses the API and directly creates a new ROOT project in the NATS KV bucket.
+After using `make reset`, the ROOT project is automatically recreated by the project service pod restart. You can load mock data normally:
 
 ```bash
-uv run lfx-v2-mockdata \
-    --jwt-rsa-secret "$JWT_RSA_SECRET" \
-    -t playbooks/projects/{root_project_access,base_projects,extra_projects} playbooks/committees/base_committees
-    -t playbooks/projects/recreate_root_project playbooks/projects/{root_project_access,base_projects,extra_projects} playbooks/committees/base_committees
+make load
 ```
 
+**Note:** If you wiped data manually (without the reset command), you'll need to delete the project service pod to trigger ROOT project recreation:
+
+```bash
+kubectl delete pod -n lfx $(kubectl get pods -n lfx --no-headers | grep project-service | awk '{print $1}')
+```
 
 ## Playbook Structure
 
