@@ -3,7 +3,7 @@
 # Copyright The Linux Foundation and each contributor to LFX.
 # SPDX-License-Identifier: MIT
 
-# This script requires jwt-client to be installed. See
+# This script requires jwt-cli to be installed. See
 # <https://github.com/mike-engel/jwt-cli> for instructions.
 
 # Ensure we were passed at least 2 arguments.

@@ -6,9 +6,7 @@
 # Script to set up environment variables for LFX v2 mock data tool
 # This script retrieves NATS URL, OpenFGA Store ID, and JWT RSA secret
 #
-# Usage: source ./scripts/setup-env.sh
-#        or
-#        eval "$(./scripts/setup-env.sh)"
+# Usage: eval "$(./scripts/setup-env.sh)"
 
 NAMESPACE="lfx"
 
@@ -19,7 +17,7 @@ echo "" >&2
 
 # Set NATS URL
 echo "📡 Setting NATS configuration..." >&2
-NATS_URL="lfx-platform-nats.lfx.svc.cluster.local:4222"
+NATS_URL="nats://lfx-platform-nats.lfx.svc.cluster.local:4222"
 echo "export NATS_URL=\"$NATS_URL\""
 echo "  ✓ NATS_URL: $NATS_URL" >&2
 echo "" >&2
@@ -34,8 +32,8 @@ if [ $CURL_EXIT_CODE -ne 0 ] || [ -z "$OPENFGA_RESPONSE" ]; then
 	echo "  Please check that OpenFGA is running and accessible" >&2
 	echo "" >&2
 else
-	# Extract the first store ID from the JSON response
-	OPENFGA_STORE_ID=$(echo "$OPENFGA_RESPONSE" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+	# Extract the first store ID from the JSON response.
+	OPENFGA_STORE_ID=$(printf '%s' "$OPENFGA_RESPONSE" | jq -r '.stores[0].id // empty' 2>/dev/null)
 
 	if [ -z "$OPENFGA_STORE_ID" ]; then
 		echo "  ⚠️  No OpenFGA store found in response" >&2
@@ -58,7 +56,7 @@ if [ $KUBECTL_EXIT_CODE -ne 0 ] || [ -z "$JWT_RSA_SECRET" ]; then
 	echo "  Please check that kubectl is configured and the secret exists" >&2
 	echo "" >&2
 else
-	# Output the JWT secret (this will be captured by eval or source)
+	# Output the JWT secret for eval to apply in the caller's shell.
 	echo "export JWT_RSA_SECRET='$JWT_RSA_SECRET'"
 	echo "  ✓ JWT_RSA_SECRET retrieved successfully" >&2
 	echo "" >&2
@@ -69,8 +67,6 @@ echo "✅ Environment setup complete!" >&2
 echo "=========================================" >&2
 echo "" >&2
 echo "To use these variables in your current shell:" >&2
-echo "  source ./scripts/setup-env.sh" >&2
-echo "  or" >&2
 echo "  eval \"\$(./scripts/setup-env.sh)\"" >&2
 echo "" >&2
 echo "Then run the mock data tool:" >&2
