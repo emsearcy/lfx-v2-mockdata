@@ -10,6 +10,7 @@ This tool generates mock data for the LFX v2 platform by running playbooks that 
 - Local LFX v2 platform running [via Helm](https://github.com/linuxfoundation/lfx-v2-helm/tree/main/charts/lfx-platform#readme)
 - `uv` package manager installed
 - `jwt` CLI from [jwt-cli](https://github.com/mike-engel/jwt-cli) Rust crate available in your $PATH
+- `kubectl`, `curl`, and `jq` available in your $PATH (used by `scripts/setup-env.sh`)
 
 These instructions and playbooks assume the script's execution environment has access to `*.*.svc.cluster.local` Kubernetes service URLs. These URLs in the playbooks can be overridden with environmental variables as needed.
 

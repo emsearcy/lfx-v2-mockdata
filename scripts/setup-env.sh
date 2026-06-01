@@ -10,6 +10,20 @@
 
 NAMESPACE="lfx"
 
+# Fail fast if any required CLI is missing. Without these the script would
+# either error out cryptically or (for jq) silently report "no stores found".
+MISSING_DEPS=""
+for dep in curl kubectl jq; do
+	if ! command -v "$dep" >/dev/null 2>&1; then
+		MISSING_DEPS="$MISSING_DEPS $dep"
+	fi
+done
+if [ -n "$MISSING_DEPS" ]; then
+	echo "❌ Missing required CLI tool(s):$MISSING_DEPS" >&2
+	echo "  Please install them and re-run this script." >&2
+	exit 1
+fi
+
 echo "=========================================" >&2
 echo "  LFX Environment Setup" >&2
 echo "=========================================" >&2
@@ -48,7 +62,7 @@ fi
 
 # Get JWT RSA secret
 echo "🔑 Retrieving JWT RSA secret..." >&2
-JWT_RSA_SECRET=$(kubectl get secret/heimdall-signer-cert -n "$NAMESPACE" -o json 2>/dev/null | jq -r '.data["signer.pem"]' 2>/dev/null | base64 --decode 2>/dev/null)
+JWT_RSA_SECRET=$(kubectl get secret/heimdall-signer-cert -n "$NAMESPACE" -o json 2>/dev/null | jq -r '.data["signer.pem"] | @base64d' 2>/dev/null)
 KUBECTL_EXIT_CODE=$?
 
 if [ $KUBECTL_EXIT_CODE -ne 0 ] || [ -z "$JWT_RSA_SECRET" ]; then
