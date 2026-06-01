@@ -44,7 +44,7 @@ If the setup script fails:
 - JWT secret extraction:
 
   ```bash
-  export JWT_RSA_SECRET="$(kubectl get secret/heimdall-signer-cert -n lfx -o json | jq -r '.data["signer.pem"]' | base64 --decode)"
+  export JWT_RSA_SECRET="$(kubectl get secret/heimdall-signer-cert -n lfx -o json | jq -r '.data["signer.pem"] | @base64d')"
   ```
 
 - The `!jwt` macro auto-detects the JWKS key ID from `http://lfx-platform-heimdall.lfx.svc.cluster.local:4457/.well-known/jwks`. If unreachable from the execution environment, pass `--jwt-key-id <id>` explicitly to `lfx-v2-mockdata`.
