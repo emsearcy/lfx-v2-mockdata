@@ -36,7 +36,7 @@ buf_board_meeting_create:
         action: created
         headers:
           authorization: !jwt bearer=true,aud=lfx-v2-project-service,principal={{ fake.user_name() }},email={{ fake.email() }}
-          x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=clients@m2m_helper
+          x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=m2m_helper@clients
         data:
           {% set meeting_id = fake.pyint(min_value=10000000000, max_value=99999999999) %}
           {# Calculate initial (historical) meeting time based on `total_past_meetings`. #}
@@ -178,7 +178,7 @@ buf_board_meeting_committee_participants_create:
         action: created
         headers:
           authorization: !jwt bearer=true,aud=lfx-v2-project-service,principal={{ fake.user_name() }},email={{ fake.email() }}
-          x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=clients@m2m_helper
+          x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=m2m_helper@clients
         data:
           # Renamed from `registrant_id` in v1.
           id: "{{ registrant_id }}"
@@ -280,7 +280,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_create:
         action: created
         headers:
           authorization: !jwt bearer=true,aud=lfx-v2-project-service,principal={{ fake.user_name() }},email={{ fake.email() }}
-          x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=clients@m2m_helper
+          x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=m2m_helper@clients
         data:
           # Renamed from `meeting_and_occurrence_id` in v1.
           id: "{{ meeting_id }}-{{ occurrence_id }}"
@@ -391,7 +391,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_recording_create:
         action: created
         headers:
           authorization: !jwt bearer=true,aud=lfx-v2-project-service,principal={{ fake.user_name() }},email={{ fake.email() }}
-          x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=clients@m2m_helper
+          x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=m2m_helper@clients
         data:
           # Renamed from `meeting_and_occurrence_id` in v1.
           id: "{{ meeting_id }}-{{ occurrence_id }}"
@@ -504,7 +504,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_transcript_create:
         action: created
         headers:
           authorization: !jwt bearer=true,aud=lfx-v2-project-service,principal={{ fake.user_name() }},email={{ fake.email() }}
-          x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=clients@m2m_helper
+          x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=m2m_helper@clients
         data:
           # Renamed from `meeting_and_occurrence_id` in v1.
           id: "{{ meeting_id }}-{{ occurrence_id }}"
@@ -611,7 +611,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_summary_create:
         action: created
         headers:
           authorization: !jwt bearer=true,aud=lfx-v2-project-service,principal={{ fake.user_name() }},email={{ fake.email() }}
-          x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=clients@m2m_helper
+          x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=m2m_helper@clients
         data:
           summary_details:
             {% for i in range(fake.pyint(min_value=8, max_value=12)) %}
@@ -715,7 +715,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_participants_create:
         action: created
         headers:
           authorization: !jwt bearer=true,aud=lfx-v2-project-service,principal={{ fake.user_name() }},email={{ fake.email() }}
-          x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=clients@m2m_helper
+          x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=m2m_helper@clients
         data:
           # v2 attributes for convenience.
           is_invited: true
@@ -819,7 +819,7 @@ buf_board_past_meeting_{{ past_meeting_index }}_participant_guests_create:
         action: created
         headers:
           authorization: !jwt bearer=true,aud=lfx-v2-project-service,principal={{ fake.user_name() }},email={{ fake.email() }}
-          x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=clients@m2m_helper
+          x-on-behalf-of: !jwt bearer=true,aud=lfx-v2-project-service,principal=m2m_helper@clients
         data:
           # v2 attributes for convenience.
           is_invited: false

@@ -263,7 +263,7 @@ class JWTGenerator(yaml.YAMLObject):
     Arguments are passed as key=value pairs separated by commas.
 
     Example:
-        !jwt aud=lfx-v2-project-service,principal=clients@m2m_helper,\\
+        !jwt aud=lfx-v2-project-service,principal=m2m_helper@clients,\
              email=test@example.com
     """
 
@@ -331,7 +331,7 @@ class JWTGenerator(yaml.YAMLObject):
         payload = {
             "aud": audience,
             "iss": "heimdall",
-            "sub": principal.replace("clients@", ""),  # Remove clients@ prefix.
+            "sub": principal.removesuffix("@clients"),  # Remove @clients suffix.
             "principal": principal,
             "exp": now_int + 300,  # 5 minutes expiry.
             "nbf": now_int,  # Valid from now.
