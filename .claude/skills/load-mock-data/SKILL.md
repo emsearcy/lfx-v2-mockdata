@@ -1,10 +1,11 @@
 ---
-# Copyright The Linux Foundation and each contributor to LFX.
-# SPDX-License-Identifier: MIT
 name: load-mock-data
 description: Use when loading or resetting local LFX v2 fixture data — running playbooks, writing to NATS/KV, calling resource service APIs, or seeding the local platform stack with test projects/committees/meetings/etc. Covers JWT/Heimdall setup, OpenFGA store discovery, and reset/load behavior.
 allowed-tools: Read, Bash(make:*), Bash(kubectl:*), Bash(curl:*), Bash(nats:*), Bash(jq:*), Bash(uv:*), Bash(./scripts/setup-env.sh:*), Bash(eval:*)
 ---
+
+<!-- Copyright The Linux Foundation and each contributor to LFX. -->
+<!-- SPDX-License-Identifier: MIT -->
 
 # Load Mock Data
 
