@@ -14,7 +14,7 @@ OPENSEARCH_POD="opensearch-cluster-master-0"
 
 # Find the NATS box pod
 find_nats_box() {
-	NATS_BOX_POD=$(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" 2>/dev/null | grep nats-box | head -1)
+	NATS_BOX_POD=$(kubectl get pods -n "$NAMESPACE" --no-headers -o custom-columns=":metadata.name" 2>/dev/null | grep nats-box | head -1)
 	if [ -z "$NATS_BOX_POD" ]; then
 		echo "❌ Could not find nats-box pod"
 		return 1
@@ -37,8 +37,8 @@ clear_nats_buckets() {
 		past-meeting-summaries past-meeting-attachments-metadata fga-sync-cache \
 		groupsio-mailing-lists groupsio-members groupsio-services; do
 		echo "  Clearing bucket: $bucket"
-		kubectl exec -n $NAMESPACE "$NATS_BOX_POD" -- nats kv rm -f $bucket 2>/dev/null || true
-		if kubectl exec -n $NAMESPACE "$NATS_BOX_POD" -- nats kv add $bucket >/dev/null 2>&1; then
+		kubectl exec -n "$NAMESPACE" "$NATS_BOX_POD" -- nats kv rm -f $bucket 2>/dev/null || true
+		if kubectl exec -n "$NAMESPACE" "$NATS_BOX_POD" -- nats kv add $bucket >/dev/null 2>&1; then
 			echo "  ✓ Recreated bucket: $bucket"
 		else
 			echo "  ✗ Failed to recreate bucket: $bucket"
@@ -180,7 +180,7 @@ delete_project_service_pod() {
 	echo ""
 	echo "🗑️  Deleting project service pod..."
 
-	PROJECT_POD=$(kubectl get pods -A --no-headers 2>/dev/null | grep project-service | grep -v Terminating | awk '{print $2}' | head -1)
+	PROJECT_POD=$(kubectl get pods -n "$NAMESPACE" --no-headers -o custom-columns=":metadata.name" 2>/dev/null | grep project-service | grep -v Terminating | head -1)
 
 	if [ -z "$PROJECT_POD" ]; then
 		echo "⚠️  Could not find project service pod"

@@ -10,6 +10,7 @@ This tool generates mock data for the LFX v2 platform by running playbooks that 
 - Local LFX v2 platform running [via Helm](https://github.com/linuxfoundation/lfx-v2-helm/tree/main/charts/lfx-platform#readme)
 - `uv` package manager installed
 - `jwt` CLI from [jwt-cli](https://github.com/mike-engel/jwt-cli) Rust crate available in your $PATH
+- `kubectl`, `curl`, and `jq` available in your $PATH (used by `scripts/setup-env.sh`)
 
 These instructions and playbooks assume the script's execution environment has access to `*.*.svc.cluster.local` Kubernetes service URLs. These URLs in the playbooks can be overridden with environmental variables as needed.
 
@@ -17,7 +18,7 @@ These instructions and playbooks assume the script's execution environment has a
 
 ```bash
 # Set up environment variables
-eval $(./scripts/setup-env.sh)
+eval "$(./scripts/setup-env.sh)"
 
 # Load all standard mock data
 make load
@@ -32,7 +33,7 @@ Run `make help` to see all available commands.
 Use the setup script to configure all environment variables:
 
 ```bash
-eval $(./scripts/setup-env.sh)
+eval "$(./scripts/setup-env.sh)"
 ```
 
 The script will automatically:
@@ -53,10 +54,10 @@ If you prefer to set environment variables manually or need to customize values:
 
 ```bash
 # NATS URL
-export NATS_URL="lfx-platform-nats.lfx.svc.cluster.local:4222"
+export NATS_URL="nats://lfx-platform-nats.lfx.svc.cluster.local:4222"
 
 # OpenFGA Store ID (get from API)
-curl -sSi "http://lfx-platform-openfga.lfx.svc.cluster.local:8080/stores"
+curl -s "http://lfx-platform-openfga.lfx.svc.cluster.local:8080/stores" | jq
 export OPENFGA_STORE_ID="your-store-id-here"
 
 # JWT RSA secret from Heimdall
@@ -75,6 +76,7 @@ make load-projects     # Load only project playbooks
 make load-committees   # Load only committee playbooks
 make load-mailing-lists # Load mailing list playbooks
 make load-meetings     # Load v1 meeting playbooks
+make recreate-root     # Recreate ROOT project KV entries
 ```
 
 Or run the tool directly for custom playbook combinations:
@@ -92,6 +94,7 @@ uv run lfx-v2-mockdata \
 - Within each directory, playbooks execute in alphabetical order.
 - Dependencies between playbooks should be considered when organizing execution order. Multiple passes are made to allow `!ref` calls to be resolved, but the right order will improve performance and help avoid max-retry errors.
 - The `!jwt` macro will attempt to detect the JWKS key ID from the endpoint at `http://lfx-platform-heimdall.lfx.svc.cluster.local:4457/.well-known/jwks`. If this URL is not accessible from the execution environment, you must pass an explicit JWT key ID using the `--jwt-key-id` argument.
+- The standard project load uses `playbooks/projects/root_project_access`, so `OPENFGA_STORE_ID` must be set. `make check-env` validates this full standard-load environment.
 
 ### Wiping Existing Data
 
@@ -103,7 +106,7 @@ make reset
 
 This will:
 
-- Clear all NATS KV buckets (projects, committees, meetings, etc.)
+- Clear configured fixture NATS KV buckets (projects, committees, meetings, mailing lists, and related data)
 - Clear and recreate OpenSearch indices (using current mapping)
 - Restart the query service to clear cache
 - Delete the project service pod to clear cache
@@ -115,7 +118,7 @@ This will:
 - Preserves authentication data in `authelia-users` and `authelia-email-otp` buckets
 - Automatically retrieves and uses current OpenSearch mapping before recreation
 
-**Manual Alternative:** If you prefer to wipe only NATS KV buckets manually:
+**Manual Alternative:** If you prefer a narrow project/committee KV wipe instead of the full reset:
 
 ```bash
 for bucket in projects project-settings committees committee-settings committee-members; do
@@ -132,7 +135,13 @@ After using `make reset`, the ROOT project is automatically recreated by the pro
 make load
 ```
 
-**Note:** If you wiped data manually (without the reset command), you'll need to delete the project service pod to trigger ROOT project recreation:
+**Note:** If you wiped data manually (without the reset command), recreate ROOT before loading. Prefer the repo playbook:
+
+```bash
+make recreate-root
+```
+
+Alternatively, delete the project service pod to trigger its startup path:
 
 ```bash
 kubectl delete pod -n lfx $(kubectl get pods -n lfx --no-headers | grep project-service | awk '{print $1}')
