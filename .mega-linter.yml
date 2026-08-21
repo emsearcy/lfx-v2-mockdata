@@ -15,3 +15,10 @@ DISABLE_ERRORS_LINTERS:
   # Making optional to not block builds, even though it's still important!
   - SPELL_CSPELL
 PYTHON_ISORT_ARGUMENTS: "--src src"
+SPELL_CSPELL_PRE_COMMANDS:
+  - command: >-
+      curl -sf
+      https://raw.githubusercontent.com/linuxfoundation/lfx-public-workflows/main/cspell/flagwords.snippet.json
+      -o /tmp/flagwords.snippet.json &&
+      sed -i -e '/"flagWords": \[\]/{r /tmp/flagwords.snippet.json' -e 'd}' .cspell.json
+    cwd: "workspace"
