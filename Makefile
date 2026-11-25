@@ -5,6 +5,9 @@
 PLAYBOOKS_DIR=playbooks
 SCRIPTS_DIR=scripts
 
+# Keep the local MegaLinter image in sync with the workflow.
+MEGALINTER_IMAGE := ghcr.io/oxsecurity/megalinter-python@sha256:65ccdc8cc09a282112e08a26da1580d33524b8b1c68f1f5eec0f94c0112764d5  # v10.2.0
+
 # Playbook paths
 PROJECTS_ROOT_ACCESS=$(PLAYBOOKS_DIR)/projects/root_project_access
 PROJECTS_BASE=$(PLAYBOOKS_DIR)/projects/base_projects
@@ -14,7 +17,7 @@ COMMITTEES_BASE=$(PLAYBOOKS_DIR)/committees/base_committees
 MAILING_LISTS=$(PLAYBOOKS_DIR)/mailing_lists/tlf_mailing_lists
 V1_MEETINGS=$(PLAYBOOKS_DIR)/v1_meetings/umbrella_board_meeting
 
-.PHONY: help setup check-env check-loader-env check-nats-env load load-projects load-committees load-mailing-lists load-meetings recreate-root reset clean
+.PHONY: help setup check-env check-loader-env check-nats-env load load-projects load-committees load-mailing-lists load-meetings recreate-root reset clean megalinter
 
 # Default target
 help:
@@ -129,3 +132,8 @@ clean:
 	@rm -rf .pytest_cache __pycache__ .mypy_cache .ruff_cache
 	@find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	@echo "==> Clean complete"
+
+# Run MegaLinter locally using the same Python flavor as CI.
+megalinter:
+	docker pull $(MEGALINTER_IMAGE)
+	docker run --rm --platform linux/amd64 -v '$(CURDIR):/tmp/lint:rw' $(MEGALINTER_IMAGE)
